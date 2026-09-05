@@ -15,13 +15,3 @@ module "state_bucket" {
 
   tags = local.tags
 }
-
-output "state_bucket_name" {
-  description = "Name of the S3 state bucket"
-  value       = module.state_bucket.s3_bucket_id
-}
-
-output "state_bucket_arn" {
-  description = "ARN of the S3 state bucket"
-  value       = module.state_bucket.s3_bucket_arn
-}
