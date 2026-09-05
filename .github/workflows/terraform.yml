@@ -8,12 +8,9 @@ on:
     branches: [main]
     paths: [terraform/**]
 
-env:
-  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
-
 jobs:
-  plan:
-    name: Terraform — plan
+  terraform:
+    name: Terraform
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,8 +25,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: "arn:aws:iam::381665779871:role/kbqa-deployment-role"
-          aws-region: "eu-west-1"
+          role-to-assume: arn:aws:iam::381665779871:role/kbqa-deployment-role
+          aws-region: eu-west-1
 
       - uses: hashicorp/setup-terraform@v4
 
@@ -94,30 +91,6 @@ jobs:
         if: steps.plan.outcome == 'failure'
         run: exit 1
 
-  apply:
-    name: Terraform — apply
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: plan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    defaults:
-      run:
-        working-directory: terraform
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.DEPLOYMENT_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - uses: hashicorp/setup-terraform@v4
-
-      - name: Init
-        run: terraform init
-
       - name: Apply
-        run: terraform apply -auto-approve
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
