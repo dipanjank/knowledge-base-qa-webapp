@@ -63,7 +63,7 @@ PostgreSQL database using [`terraform-aws-modules/rds/aws`](https://registry.ter
 | Backup retention        | 1 day                              |
 | Deletion protection     | No                                 |
 | Database name           | `kbqa`                             |
-| Username                | `kbqa-admin`                       |
+| Username                | `kbqa_admin`                       |
 | Password                | Random 24-char alphanumeric        |
 | Subnet group            | VPC database subnets               |
 | Allowed extensions      | pgvector (`vector`)                |

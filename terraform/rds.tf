@@ -42,7 +42,7 @@ module "rds" {
   max_allocated_storage = 20
 
   db_name  = var.project_name
-  username = "${var.project_name}-admin"
+  username = "${var.project_name}_admin"
   port     = 5432
 
   manage_master_user_password = false
