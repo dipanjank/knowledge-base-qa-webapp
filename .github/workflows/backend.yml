@@ -36,6 +36,7 @@ jobs:
     uses: ./.github/workflows/docker-build.yml
     with:
       directory: backend
+      ecr-repo: kbqa-backend
       aws-region: eu-west-1
       role-to-assume: arn:aws:iam::381665779871:role/kbqa-deployment-role
       publish: ${{ github.ref == 'refs/heads/main' }}

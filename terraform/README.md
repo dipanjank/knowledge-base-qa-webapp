@@ -12,11 +12,11 @@ AWS infrastructure for the Knowledge Base QA web application.
 
 State is stored remotely in S3:
 
-| Setting | Value |
-|---------|-------|
-| Bucket  | `kbqa-terraform-state` |
+| Setting | Value                          |
+|---------|--------------------------------|
+| Bucket  | `kbqa-terraform-state`         |
 | Key     | `statefiles/terraform.tfstate` |
-| Region  | `eu-west-1` |
+| Region  | `eu-west-1`                    |
 
 The state bucket is itself managed by Terraform (`state_bucket.tf`) with versioning enabled and all public access blocked.
 
@@ -26,24 +26,35 @@ The state bucket is itself managed by Terraform (`state_bucket.tf`) with version
 
 VPC created using [`terraform-aws-modules/vpc/aws`](https://registry.terraform.io/modules/terraform-aws-modules/vpc/aws) ~> 5.0:
 
-| Resource | Details |
-|----------|---------|
-| VPC CIDR | `10.0.0.0/16` |
-| Public subnets | `10.0.1.0/24`, `10.0.2.0/24` (AZs a, b) |
-| Private subnets | `10.0.10.0/24`, `10.0.11.0/24` (AZs a, b) |
-| Internet Gateway | Yes (for public subnets) |
-| NAT Gateway | Single (shared by private subnets) |
-| DNS hostnames / support | Enabled |
+| Resource                | Details                                   |
+|-------------------------|-------------------------------------------|
+| VPC CIDR                | `10.0.0.0/16`                             |
+| Public subnets          | `10.0.1.0/24`, `10.0.2.0/24` (AZs a, b)   |
+| Private subnets         | `10.0.10.0/24`, `10.0.11.0/24` (AZs a, b) |
+| Internet Gateway        | Yes (for public subnets)                  |
+| NAT Gateway             | Single (shared by private subnets)        |
+| DNS hostnames / support | Enabled                                   |
 
 ### SSM Parameters (`ssm.tf`)
 
 VPC outputs are published to SSM Parameter Store for consumption by other services:
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `/<project>/vpc/id` | String | VPC ID |
-| `/<project>/vpc/public-subnet-ids` | StringList | Comma-separated public subnet IDs |
+| Parameter                           | Type       | Description                        |
+|-------------------------------------|------------|------------------------------------|
+| `/<project>/vpc/id`                 | String     | VPC ID                             |
+| `/<project>/vpc/public-subnet-ids`  | StringList | Comma-separated public subnet IDs  |
 | `/<project>/vpc/private-subnet-ids` | StringList | Comma-separated private subnet IDs |
+
+### ECR Repositories (`ecr.tf`)
+
+Container registries for application images:
+
+| Repository | Description                    |
+|------------|--------------------------------|
+| `backend`  | Backend FastAPI application    |
+| `frontend` | Frontend SvelteKit application |
+
+Both repositories have mutable tags, force delete enabled, and a lifecycle policy that keeps the last 5 images.
 
 ### GitHub OIDC (`oidc_github.tf`)
 
@@ -59,27 +70,38 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 
 ## Variables
 
-| Name | Description | Default |
-|------|-------------|---------|
-| `aws_region` | AWS region | `eu-west-1` |
-| `project_name` | Project name used for resource naming | `kbqa` |
+| Name           | Description                           | Default     |
+|----------------|---------------------------------------|-------------|
+| `aws_region`   | AWS region                            | `eu-west-1` |
+| `project_name` | Project name used for resource naming | `kbqa`      |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `state_bucket_name` | Name of the S3 state bucket |
-| `state_bucket_arn` | ARN of the S3 state bucket |
+| Name                  | Description                               |
+|-----------------------|-------------------------------------------|
+| `state_bucket_name`   | Name of the S3 state bucket               |
+| `state_bucket_arn`    | ARN of the S3 state bucket                |
 | `deployment_role_arn` | ARN of the GitHub Actions deployment role |
-| `vpc_id` | ID of the VPC |
-| `public_subnet_ids` | IDs of the public subnets |
-| `private_subnet_ids` | IDs of the private subnets |
+| `vpc_id`              | ID of the VPC                             |
+| `public_subnet_ids`   | IDs of the public subnets                 |
+| `private_subnet_ids`  | IDs of the private subnets                |
+
+## SSM Parameters
+
+All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
+
+| Parameter                      | Type       | Value                              |
+|--------------------------------|------------|------------------------------------|
+| `/kbqa/vpc/id`                 | String     | VPC ID                             |
+| `/kbqa/vpc/public-subnet-ids`  | StringList | Comma-separated public subnet IDs  |
+| `/kbqa/vpc/private-subnet-ids` | StringList | Comma-separated private subnet IDs |
 
 ## File Layout
 
 ```
 terraform/
 ├── backend.tf          # S3 remote state configuration
+├── ecr.tf              # ECR repositories and lifecycle policies
 ├── main.tf             # Local values (tags)
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role
 ├── outputs.tf          # Terraform outputs

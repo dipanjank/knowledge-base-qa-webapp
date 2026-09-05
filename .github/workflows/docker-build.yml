@@ -7,6 +7,10 @@ on:
         description: Folder containing the Dockerfile
         required: true
         type: string
+      ecr-repo:
+        description: ECR repository name
+        required: true
+        type: string
       aws-region:
         description: AWS region
         required: true
@@ -58,8 +62,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
           IMAGE_TAG: ${{ steps.version.outputs.tag }}
-          REPO: ${{ inputs.directory }}
+          REPO: ${{ inputs.ecr-repo }}
         run: |
-          docker build -t $ECR_REGISTRY/$REPO:$IMAGE_TAG -t $ECR_REGISTRY/$REPO:latest .
+          docker build -t $ECR_REGISTRY/$REPO:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$REPO:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$REPO:latest
