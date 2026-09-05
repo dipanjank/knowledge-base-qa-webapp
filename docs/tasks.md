@@ -101,7 +101,7 @@
 
 ### Stories
 
-- [ ] **10.1** Pull requests trigger automated linting, tests, and Terraform validation
+- [x] **10.1** Pull requests trigger automated linting, tests, and Terraform validation
 - [ ] **10.2** Merges to main build and push Docker images to ECR and deploy to ECS
 
 ## Epic 11: Testing & Documentation
