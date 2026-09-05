@@ -27,3 +27,18 @@ output "private_subnet_ids" {
   description = "IDs of the private subnets"
   value       = module.vpc.private_subnets
 }
+
+output "rds_endpoint" {
+  description = "Endpoint of the RDS instance"
+  value       = module.rds.db_instance_endpoint
+}
+
+output "rds_port" {
+  description = "Port of the RDS instance"
+  value       = module.rds.db_instance_port
+}
+
+output "database_security_group_id" {
+  description = "ID of the database security group"
+  value       = aws_security_group.database.id
+}

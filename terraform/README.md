@@ -31,19 +31,44 @@ VPC created using [`terraform-aws-modules/vpc/aws`](https://registry.terraform.i
 | VPC CIDR                | `10.0.0.0/16`                             |
 | Public subnets          | `10.0.1.0/24`, `10.0.2.0/24` (AZs a, b)   |
 | Private subnets         | `10.0.10.0/24`, `10.0.11.0/24` (AZs a, b) |
+| Database subnets        | `10.0.20.0/24`, `10.0.21.0/24` (AZs a, b) |
+| Database subnet group   | Yes (for RDS)                              |
 | Internet Gateway        | Yes (for public subnets)                  |
 | NAT Gateway             | Single (shared by private subnets)        |
 | DNS hostnames / support | Enabled                                   |
 
 ### SSM Parameters (`ssm.tf`)
 
-VPC outputs are published to SSM Parameter Store for consumption by other services:
+VPC and database outputs are published to SSM Parameter Store for consumption by other services:
 
-| Parameter                           | Type       | Description                        |
-|-------------------------------------|------------|------------------------------------|
-| `/<project>/vpc/id`                 | String     | VPC ID                             |
-| `/<project>/vpc/public-subnet-ids`  | StringList | Comma-separated public subnet IDs  |
-| `/<project>/vpc/private-subnet-ids` | StringList | Comma-separated private subnet IDs |
+| Parameter                           | Type         | Description                        |
+|-------------------------------------|--------------|------------------------------------|
+| `/<project>/vpc/id`                 | String       | VPC ID                             |
+| `/<project>/vpc/cidr`               | String       | VPC CIDR block                     |
+| `/<project>/vpc/public-subnet-ids`  | StringList   | Comma-separated public subnet IDs  |
+| `/<project>/vpc/private-subnet-ids` | StringList   | Comma-separated private subnet IDs |
+| `/<project>/db/username`            | String       | Database master username           |
+| `/<project>/db/password`            | SecureString | Database master password           |
+
+### RDS PostgreSQL (`rds.tf`)
+
+PostgreSQL database using [`terraform-aws-modules/rds/aws`](https://registry.terraform.io/modules/terraform-aws-modules/rds/aws) ~> 6.0:
+
+| Setting                 | Value                              |
+|-------------------------|------------------------------------|
+| Engine                  | PostgreSQL 17                      |
+| Instance class          | `db.t4g.micro`                     |
+| Storage                 | 10 GB (auto-scales to 20 GB)      |
+| Multi-AZ                | No                                 |
+| Backup retention        | 1 day                              |
+| Deletion protection     | No                                 |
+| Database name           | `kbqa`                             |
+| Username                | `kbqa-admin`                       |
+| Password                | Random 24-char alphanumeric        |
+| Subnet group            | VPC database subnets               |
+| Allowed extensions      | pgvector (`vector`)                |
+
+**Security Group** — `kbqa-database-sg` allows inbound PostgreSQL (5432) from the VPC CIDR only.
 
 ### ECR Repositories (`ecr.tf`)
 
@@ -77,24 +102,30 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 
 ## Outputs
 
-| Name                  | Description                               |
-|-----------------------|-------------------------------------------|
-| `state_bucket_name`   | Name of the S3 state bucket               |
-| `state_bucket_arn`    | ARN of the S3 state bucket                |
-| `deployment_role_arn` | ARN of the GitHub Actions deployment role |
-| `vpc_id`              | ID of the VPC                             |
-| `public_subnet_ids`   | IDs of the public subnets                 |
-| `private_subnet_ids`  | IDs of the private subnets                |
+| Name                         | Description                               |
+|------------------------------|-------------------------------------------|
+| `state_bucket_name`          | Name of the S3 state bucket               |
+| `state_bucket_arn`           | ARN of the S3 state bucket                |
+| `deployment_role_arn`        | ARN of the GitHub Actions deployment role |
+| `vpc_id`                     | ID of the VPC                             |
+| `public_subnet_ids`          | IDs of the public subnets                 |
+| `private_subnet_ids`         | IDs of the private subnets                |
+| `rds_endpoint`               | Endpoint of the RDS instance              |
+| `rds_port`                   | Port of the RDS instance                  |
+| `database_security_group_id` | ID of the database security group         |
 
 ## SSM Parameters
 
 All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 
-| Parameter                      | Type       | Value                              |
-|--------------------------------|------------|------------------------------------|
-| `/kbqa/vpc/id`                 | String     | VPC ID                             |
-| `/kbqa/vpc/public-subnet-ids`  | StringList | Comma-separated public subnet IDs  |
-| `/kbqa/vpc/private-subnet-ids` | StringList | Comma-separated private subnet IDs |
+| Parameter                      | Type         | Value                              |
+|--------------------------------|--------------|------------------------------------|
+| `/kbqa/vpc/id`                 | String       | VPC ID                             |
+| `/kbqa/vpc/cidr`               | String       | VPC CIDR block                     |
+| `/kbqa/vpc/public-subnet-ids`  | StringList   | Comma-separated public subnet IDs  |
+| `/kbqa/vpc/private-subnet-ids` | StringList   | Comma-separated private subnet IDs |
+| `/kbqa/db/username`            | String       | Database master username           |
+| `/kbqa/db/password`            | SecureString | Database master password           |
 
 ## File Layout
 
@@ -106,6 +137,7 @@ terraform/
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role
 ├── outputs.tf          # Terraform outputs
 ├── providers.tf        # AWS provider configuration
+├── rds.tf              # RDS PostgreSQL instance and security group
 ├── ssm.tf              # SSM parameters for VPC outputs
 ├── state_bucket.tf     # S3 state bucket
 ├── variables.tf        # Input variables
