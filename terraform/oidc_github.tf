@@ -19,7 +19,7 @@ data "aws_iam_policy_document" "deployment_trust" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:dipanjank/knowledge-base-qa-webapp:*"]
+      values   = ["repo:dipanjank@23024451/knowledge-base-qa-webapp@1358142975:*"]
     }
 
     condition {
