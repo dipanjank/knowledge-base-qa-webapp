@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  AWS_REGION: "eu-west-1"
   ECR_BACKEND_REPO: kbqa-backend
   ECR_FRONTEND_REPO: kbqa-frontend
 
