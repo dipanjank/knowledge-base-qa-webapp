@@ -1,0 +1,46 @@
+name: Frontend
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [frontend/**]
+  push:
+    branches: [main]
+    paths: [frontend/**]
+
+jobs:
+  check-and-build:
+    name: Frontend — check & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    needs: check-and-build
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      directory: frontend
+      aws-region: eu-west-1
+      role-to-assume: arn:aws:iam::381665779871:role/kbqa-deployment-role
+      publish: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      id-token: write

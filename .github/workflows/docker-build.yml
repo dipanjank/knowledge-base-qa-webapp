@@ -1,0 +1,65 @@
+name: Docker Build
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: Folder containing the Dockerfile
+        required: true
+        type: string
+      aws-region:
+        description: AWS region
+        required: true
+        type: string
+      role-to-assume:
+        description: IAM role ARN for AWS credentials
+        required: true
+        type: string
+      publish:
+        description: Push image to ECR
+        required: true
+        type: boolean
+
+jobs:
+  build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        if: inputs.publish
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ inputs.role-to-assume }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Login to Amazon ECR
+        if: inputs.publish
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Read version
+        id: version
+        working-directory: ${{ inputs.directory }}
+        run: echo "tag=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        if: ${{ !inputs.publish }}
+        working-directory: ${{ inputs.directory }}
+        run: docker build -t ${{ inputs.directory }}:${{ steps.version.outputs.tag }} .
+
+      - name: Build and push image
+        if: inputs.publish
+        working-directory: ${{ inputs.directory }}
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ steps.version.outputs.tag }}
+          REPO: ${{ inputs.directory }}
+        run: |
+          docker build -t $ECR_REGISTRY/$REPO:$IMAGE_TAG -t $ECR_REGISTRY/$REPO:latest .
+          docker push $ECR_REGISTRY/$REPO:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$REPO:latest

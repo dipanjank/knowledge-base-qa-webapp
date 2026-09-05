@@ -1,0 +1,44 @@
+name: Backend
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [backend/**]
+  push:
+    branches: [main]
+    paths: [backend/**]
+
+jobs:
+  lint-and-test:
+    name: Backend — lint & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt && pip install ruff pytest httpx
+
+      - name: Lint
+        run: ruff check app/
+
+      - name: Test
+        run: pytest -v
+
+  docker:
+    needs: lint-and-test
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      directory: backend
+      aws-region: eu-west-1
+      role-to-assume: arn:aws:iam::381665779871:role/kbqa-deployment-role
+      publish: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      id-token: write
