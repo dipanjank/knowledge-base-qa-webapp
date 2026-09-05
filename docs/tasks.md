@@ -44,71 +44,33 @@
 - [ ] **4.2** Answers include source citations with document name, excerpt, and relevance score
 - [ ] **4.3** User is told when there is not enough information to answer the question
 
-## Epic 5: Frontend — Authentication & Navigation
-
-> As a user, I can log in through a web interface and navigate the application.
-
-### Stories
-
-- [ ] **5.1** User can log in and is redirected to the QA page; session persists across reloads
-- [ ] **5.2** Unauthenticated users are redirected to the login page
-- [ ] **5.3** Navigation bar shows links to Documents, QA, Logout (and Admin Users for admins)
-
-## Epic 6: Frontend — Admin User Management
-
-> As an admin, I can create, view, and delete users through the web interface.
-
-### Stories
-
-- [ ] **6.1** Admin can create a user and see the generated password displayed once
-- [ ] **6.2** Admin can view a list of all users and delete non-admin users
-- [ ] **6.3** Non-admin users cannot access the admin page
-
-## Epic 7: Frontend — Document Management
-
-> As a user, I can upload, browse, and delete documents through the web interface.
-
-### Stories
-
-- [ ] **7.1** User can upload a file via drag-and-drop or file picker with client-side validation
-- [ ] **7.2** User can browse a paginated list of their documents and view document details
-- [ ] **7.3** User can delete a document with a confirmation prompt
-
-## Epic 8: Frontend — Question Answering
-
-> As a user, I can ask questions in a chat interface and receive AI-generated answers with source citations.
-
-### Stories
-
-- [ ] **8.1** User can ask questions in a chat interface and see answers with source citations
-
-## Epic 9: Infrastructure
+## Epic 5: Infrastructure
 
 > As an operator, I can deploy the complete application stack to AWS using Terraform.
 
 ### Stories
 
-- [x] **9.1** Provision networking (VPC, subnets, NAT gateway)
-- [ ] **9.2** Provision storage and registry (S3 bucket, ECR repositories)
-- [x] **9.3** Provision database (RDS PostgreSQL with pgvector)
-- [ ] **9.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
-- [ ] **9.5** Provision IAM roles with least-privilege access for ECS tasks
-- [ ] **9.6** Wire all modules together and validate
+- [x] **5.1** Provision networking (VPC, subnets, NAT gateway)
+- [ ] **5.2** Provision storage and registry (S3 bucket, ECR repositories)
+- [x] **5.3** Provision database (RDS PostgreSQL with pgvector)
+- [ ] **5.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
+- [ ] **5.5** Provision IAM roles with least-privilege access for ECS tasks
+- [ ] **5.6** Wire all modules together and validate
 
-## Epic 10: CI/CD
+## Epic 6: CI/CD
 
 > As a developer, I get automated feedback on PRs and changes to main are automatically deployed.
 
 ### Stories
 
-- [x] **10.1** Pull requests trigger automated linting, tests, and Terraform validation
-- [ ] **10.2** Merges to main build and push Docker images to ECR and deploy to ECS
+- [x] **6.1** Pull requests trigger automated linting, tests, and Terraform validation
+- [ ] **6.2** Merges to main build and push Docker images to ECR and deploy to ECS
 
-## Epic 11: Testing & Documentation
+## Epic 7: Testing & Documentation
 
 > As a developer, I can run tests to verify the system works correctly and read documentation to understand the project.
 
 ### Stories
 
-- [ ] **11.1** Backend has tests covering auth, admin, document management, and RAG
-- [ ] **11.2** README documents project setup, local development, and deployment
+- [ ] **7.1** Backend has tests covering auth, admin, document management, and RAG
+- [ ] **7.2** README documents project setup, local development, and deployment
