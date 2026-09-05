@@ -88,9 +88,9 @@
 
 ### Stories
 
-- [ ] **9.1** Provision networking (VPC, subnets, NAT gateway)
+- [x] **9.1** Provision networking (VPC, subnets, NAT gateway)
 - [ ] **9.2** Provision storage and registry (S3 bucket, ECR repositories)
-- [ ] **9.3** Provision database (RDS PostgreSQL with pgvector)
+- [x] **9.3** Provision database (RDS PostgreSQL with pgvector)
 - [ ] **9.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
 - [ ] **9.5** Provision IAM roles with least-privilege access for ECS tasks
 - [ ] **9.6** Wire all modules together and validate
