@@ -15,8 +15,6 @@ module "vpc" {
   enable_dns_hostnames = true
   enable_dns_support   = true
 
-  tags = local.tags
-
   public_subnet_tags = {
     Tier = "public"
   }
@@ -24,4 +22,6 @@ module "vpc" {
   private_subnet_tags = {
     Tier = "private"
   }
+
+  tags = local.tags
 }
