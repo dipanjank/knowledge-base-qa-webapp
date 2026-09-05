@@ -6,9 +6,9 @@
 
 ### Stories
 
-- [ ] **1.1** Bootstrap the backend application
-- [ ] **1.2** Bootstrap the frontend application
-- [ ] **1.3** Create docker-compose to run the full stack locally
+- [x] **1.1** Bootstrap the backend application
+- [x] **1.2** Bootstrap the frontend application
+- [x] **1.3** Create docker-compose to run the full stack locally
 
 ## Epic 2: Authentication & User Management
 
