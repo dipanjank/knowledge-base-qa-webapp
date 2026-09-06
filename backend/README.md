@@ -130,4 +130,4 @@ ruff check app/ tests/
 
 ## Database
 
-Tables are created manually via `sql/table-definitions.sql` applied to RDS — no auto-migration. The admin user is seeded on startup if no admin exists.
+Tables are created manually via `sql/kbqa.sql` applied to RDS — no auto-migration. The admin user is seeded on startup if no admin exists.

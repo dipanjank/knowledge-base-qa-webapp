@@ -72,7 +72,7 @@ npm run dev                      # :5173, proxies /api → :8000
 
 ### Database
 
-Tables are created manually via SQL — apply `sql/table-definitions.sql` to PostgreSQL. The admin user is seeded automatically on backend startup.
+Tables are created manually via SQL — apply `sql/kbqa.sql` to PostgreSQL. The admin user is seeded automatically on backend startup.
 
 ## Deployment
 
