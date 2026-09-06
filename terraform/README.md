@@ -102,11 +102,22 @@ Keyless authentication for GitHub Actions via OIDC federation:
 Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Routes traffic to Fargate tasks in the private subnets.
 
 - **Security Group** — `kbqa-alb-sg` allows inbound HTTP (80) and HTTPS (443) from anywhere
-- **HTTP Listener** — Returns 404 by default; ECS services register target groups with path-based routing rules
+- **HTTP Listener** — Forwards to the frontend target group by default
+- **Frontend Target Group** — IP-based target group on port 3000, health-checked on `/`
 
-### ECS Cluster (`ecs.tf`)
+### ECS (`ecs.tf`)
 
-Fargate-based ECS cluster (`kbqa-cluster`) for running application containers in the VPC private subnets. Container Insights enabled for monitoring. Uses the `FARGATE` capacity provider as default.
+**Cluster** — `kbqa-cluster` with Fargate capacity provider and Container Insights enabled.
+
+**Frontend Service** — `kbqa-frontend` Fargate service using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 5.0, deployed to the private subnets:
+
+| Setting    | Value                                  |
+|------------|----------------------------------------|
+| CPU        | 256 (0.25 vCPU)                        |
+| Memory     | 512 MB                                 |
+| Container  | `kbqa-frontend` ECR image on port 3000 |
+| Logging    | CloudWatch (`/ecs/kbqa-frontend`, 7d)  |
+| Networking | Private subnets, ALB ingress on 3000   |
 
 ### Data Bucket (`s3.tf`)
 
@@ -172,7 +183,7 @@ All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 terraform/
 ├── alb.tf              # Application Load Balancer and security group
 ├── backend.tf          # S3 remote state configuration
-├── ecs.tf              # ECS Fargate cluster
+├── ecs.tf              # ECS Fargate cluster and frontend service
 ├── ecr.tf              # ECR repositories and lifecycle policies
 ├── main.tf             # Local values (tags)
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role

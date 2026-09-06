@@ -45,13 +45,28 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type = "fixed-response"
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.frontend.arn
+  }
 
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "Not Found"
-      status_code  = "404"
-    }
+  tags = local.tags
+}
+
+resource "aws_lb_target_group" "frontend" {
+  name        = "${var.project_name}-frontend"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = module.vpc.vpc_id
+  target_type = "ip"
+
+  health_check {
+    path                = "/"
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200"
   }
 
   tags = local.tags

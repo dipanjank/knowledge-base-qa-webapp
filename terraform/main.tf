@@ -4,4 +4,5 @@ locals {
     ManagedBy      = "terraform"
     RepositoryName = "knowledge-base-qa-webapp"
   }
+  frontend_image_version = "0.1.0"
 }
