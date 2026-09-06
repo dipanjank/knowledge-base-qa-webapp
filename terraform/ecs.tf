@@ -22,7 +22,7 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 
 module "frontend_service" {
   source  = "terraform-aws-modules/ecs/aws//modules/service"
-  version = "~> 5.0"
+  version = "~> 7.0"
 
   name        = "${var.project_name}-frontend"
   cluster_arn = aws_ecs_cluster.main.arn
