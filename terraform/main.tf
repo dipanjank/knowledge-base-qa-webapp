@@ -4,7 +4,7 @@ resource "random_password" "jwt_secret" {
 }
 
 resource "random_password" "admin" {
-  length  = 24
+  length  = 10
   special = false
 }
 
