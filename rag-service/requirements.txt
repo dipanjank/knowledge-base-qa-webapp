@@ -7,3 +7,4 @@ langchain-core>=0.3.0
 langchain-text-splitters>=0.3.0
 langchain-aws>=0.2.0
 langchain-postgres>=0.0.12
+tiktoken>=0.7.0
