@@ -1,0 +1,32 @@
+[project]
+name = "kbqa-rag-service"
+version = "0.1.0"
+description = "Knowledge Base QA - RAG Worker Service"
+requires-python = ">=3.14"
+dependencies = [
+    "sqlalchemy>=2.0.0",
+    "sqlmodel>=0.0.22",
+    "psycopg2-binary>=2.9.0",
+    "pydantic-settings>=2.0.0",
+    "boto3>=1.35.0",
+    "langchain-core>=0.3.0",
+    "langchain-text-splitters>=0.3.0",
+    "langchain-aws>=0.2.0",
+    "langchain-postgres>=0.0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

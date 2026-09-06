@@ -72,7 +72,7 @@
 - [x] **6.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
 - [x] **6.5** Provision IAM roles with least-privilege access for ECS tasks
 - [x] **6.6** Wire all modules together and validate
-- [ ] **6.7** Provision SQS queue (kbqa-rag) with DLQ for async RAG processing
+- [x] **6.7** Provision SQS queue (kbqa-rag) with DLQ for async RAG processing
 - [ ] **6.8** Provision ECR repository and ECS service for kbqa-rag worker (no ALB, polls SQS)
 - [ ] **6.9** Add SQS SendMessage IAM policy to backend task role and SQS_QUEUE_URL env var
 - [ ] **6.10** Add SQS Receive/Delete, S3 GetObject, Bedrock InvokeModel IAM policies to RAG worker task role
