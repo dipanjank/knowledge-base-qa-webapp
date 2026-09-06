@@ -45,3 +45,19 @@ resource "aws_ssm_parameter" "db_password" {
 
   tags = local.tags
 }
+
+resource "aws_ssm_parameter" "data_bucket_name" {
+  name  = "/${var.project_name}/s3/data-bucket-name"
+  type  = "String"
+  value = module.data_bucket.s3_bucket_id
+
+  tags = local.tags
+}
+
+resource "aws_ssm_parameter" "data_bucket_arn" {
+  name  = "/${var.project_name}/s3/data-bucket-arn"
+  type  = "String"
+  value = module.data_bucket.s3_bucket_arn
+
+  tags = local.tags
+}

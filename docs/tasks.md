@@ -51,7 +51,7 @@
 ### Stories
 
 - [x] **5.1** Provision networking (VPC, subnets, NAT gateway)
-- [ ] **5.2** Provision storage and registry (S3 bucket, ECR repositories)
+- [x] **5.2** Provision storage and registry (S3 bucket, ECR repositories)
 - [x] **5.3** Provision database (RDS PostgreSQL with pgvector)
 - [ ] **5.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
 - [ ] **5.5** Provision IAM roles with least-privilege access for ECS tasks
@@ -64,7 +64,7 @@
 ### Stories
 
 - [x] **6.1** Pull requests trigger automated linting, tests, and Terraform validation
-- [ ] **6.2** Merges to main build and push Docker images to ECR and deploy to ECS
+- [x] **6.2** Merges to main build and push Docker images to ECR and deploy to ECS
 
 ## Epic 7: Testing & Documentation
 
