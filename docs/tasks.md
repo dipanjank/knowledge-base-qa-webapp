@@ -53,7 +53,7 @@
 - [x] **5.1** Provision networking (VPC, subnets, NAT gateway)
 - [x] **5.2** Provision storage and registry (S3 bucket, ECR repositories)
 - [x] **5.3** Provision database (RDS PostgreSQL with pgvector)
-- [ ] **5.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
+- [x] **5.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
 - [ ] **5.5** Provision IAM roles with least-privilege access for ECS tasks
 - [ ] **5.6** Wire all modules together and validate
 
