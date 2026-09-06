@@ -61,3 +61,19 @@ resource "aws_ssm_parameter" "data_bucket_arn" {
 
   tags = local.tags
 }
+
+resource "aws_ssm_parameter" "ecs_cluster_name" {
+  name  = "/${var.project_name}/ecs/cluster-name"
+  type  = "String"
+  value = aws_ecs_cluster.main.name
+
+  tags = local.tags
+}
+
+resource "aws_ssm_parameter" "ecs_cluster_arn" {
+  name  = "/${var.project_name}/ecs/cluster-arn"
+  type  = "String"
+  value = aws_ecs_cluster.main.arn
+
+  tags = local.tags
+}
