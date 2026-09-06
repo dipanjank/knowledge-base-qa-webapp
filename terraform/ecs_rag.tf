@@ -8,7 +8,7 @@ module "rag_service" {
   desired_count = 1
 
   cpu    = 1024
-  memory = 1024
+  memory = 2048
 
   enable_autoscaling = false
 

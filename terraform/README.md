@@ -149,7 +149,7 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 | Setting     | Value                                                                        |
 |-------------|------------------------------------------------------------------------------|
 | CPU         | 1024 (1 vCPU)                                                                |
-| Memory      | 1024 MB                                                                      |
+| Memory      | 2048 MB                                                                      |
 | Container   | `kbqa-rag` ECR image (no port mappings — worker only)                        |
 | Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `SQS_QUEUE_URL`, `BEDROCK_EMBEDDING_MODEL_ID` |
 | Secrets     | `DATABASE_URL` from SSM                                                      |
