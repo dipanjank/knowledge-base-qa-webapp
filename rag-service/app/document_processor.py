@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 class DocumentProcessor:
     """Downloads a document from S3, splits and embeds the text, and stores the vectors."""
 
-    def __init__(self, s3: S3Service, text_splitter: TextSplitter, vector_store: PGVector, session_factory: sessionmaker):
+    def __init__(
+        self, s3: S3Service, text_splitter: TextSplitter, vector_store: PGVector, session_factory: sessionmaker
+    ):
         self._s3 = s3
         self._splitter = text_splitter
         self._vector_store = vector_store
