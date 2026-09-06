@@ -90,8 +90,9 @@ Container registries for application images:
 |------------|--------------------------------|
 | `backend`  | Backend FastAPI application    |
 | `frontend` | Frontend SvelteKit application |
+| `rag`      | RAG worker service             |
 
-Both repositories have mutable tags, force delete enabled, and a lifecycle policy that keeps the last 5 images.
+All repositories have mutable tags, force delete enabled, and a lifecycle policy that keeps the last 5 images.
 
 ### GitHub OIDC (`oidc_github.tf`)
 
@@ -136,10 +137,32 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 | CPU         | 512 (0.5 vCPU)                                            |
 | Memory      | 1024 MB                                                    |
 | Container   | `kbqa-backend` ECR image on port 8000                      |
-| Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`, `BEDROCK_MODEL_ID`, `BEDROCK_EMBEDDING_MODEL_ID`, `ADMIN_USERNAME`, `ADMIN_EMAIL` |
+| Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`, `ADMIN_USERNAME`, `ADMIN_EMAIL` |
 | Secrets     | `DATABASE_URL`, `JWT_SECRET`, `ADMIN_PASSWORD` from SSM    |
 | Logging     | CloudWatch (`/ecs/kbqa-backend`, 7d)                       |
 | Networking  | Private subnets, ALB ingress on 8000                       |
+
+### RAG Worker Service (`ecs_rag.tf`)
+
+`kbqa-rag` Fargate service (1 task, no autoscaling) using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
+
+| Setting     | Value                                                                        |
+|-------------|------------------------------------------------------------------------------|
+| CPU         | 1024 (1 vCPU)                                                                |
+| Memory      | 1024 MB                                                                      |
+| Container   | `kbqa-rag` ECR image (no port mappings — worker only)                        |
+| Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `SQS_QUEUE_URL`, `BEDROCK_EMBEDDING_MODEL_ID` |
+| Secrets     | `DATABASE_URL` from SSM                                                      |
+| IAM         | SQS (Receive/Delete), S3 (GetObject), Bedrock (InvokeModel)                 |
+| Logging     | CloudWatch (`/ecs/kbqa-rag`, 7d)                                             |
+| Networking  | Private subnets, egress only (no inbound traffic)                            |
+
+### SQS Queues (`sqs.tf`)
+
+| Queue            | Description                              | Settings                                          |
+|------------------|------------------------------------------|----------------------------------------------------|
+| `kbqa-rag`       | RAG job processing queue                 | 900s visibility, 1 day retention, 20s long poll    |
+| `kbqa-rag-dlq`   | Dead-letter queue for failed RAG jobs    | 14 day retention, redrive after 3 failed attempts  |
 
 ### Data Bucket (`s3.tf`)
 
@@ -157,7 +180,7 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 | `project_name`               | Project name for resources   | `kbqa`                                |
 | `admin_username`             | Initial admin username       | `admin`                               |
 | `admin_email`                | Initial admin email          | `admin@kbqa.local`                    |
-| `bedrock_model_id`           | Bedrock LLM model ID        | `anthropic.claude-sonnet-4-20250514-v1:0` |
+| `bedrock_model_id`           | Bedrock LLM model ID        | `meta.llama4-maverick-17b-instruct-v1:0` |
 | `bedrock_embedding_model_id` | Bedrock embedding model ID   | `amazon.titan-embed-text-v2:0`        |
 
 ## Outputs
@@ -181,6 +204,9 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 | `alb_dns_name`               | DNS name of the ALB                       |
 | `alb_http_listener_arn`      | ARN of the ALB HTTP listener              |
 | `alb_security_group_id`      | ID of the ALB security group              |
+| `sqs_rag_queue_url`          | URL of the RAG SQS queue                  |
+| `sqs_rag_queue_arn`          | ARN of the RAG SQS queue                  |
+| `sqs_rag_dlq_url`           | URL of the RAG SQS dead-letter queue      |
 
 ## SSM Parameters
 
@@ -216,6 +242,7 @@ terraform/
 ├── ecs_backend.tf      # ECS Fargate backend service
 ├── ecs_cluster.tf      # ECS Fargate cluster
 ├── ecs_frontend.tf     # ECS Fargate frontend service
+├── ecs_rag.tf          # ECS Fargate RAG worker service
 ├── ecr.tf              # ECR repositories and lifecycle policies
 ├── main.tf             # Local values (tags, image versions) and generated secrets
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role
@@ -223,6 +250,7 @@ terraform/
 ├── providers.tf        # AWS provider configuration
 ├── rds.tf              # RDS PostgreSQL instance and security group
 ├── s3.tf               # S3 data bucket for document uploads
+├── sqs.tf              # SQS queues for async RAG processing
 ├── ssm.tf              # SSM parameters for shared outputs
 ├── state_bucket.tf     # S3 state bucket
 ├── variables.tf        # Input variables
