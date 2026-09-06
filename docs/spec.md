@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-A fullstack web application that allows users to upload documents (PDF, TXT, CSV), chunk and embed them using Amazon Bedrock Titan Embeddings, store vectors in PostgreSQL with pgvector, and perform RAG-based question answering against the indexed content.
+A fullstack web application that allows users to upload TXT documents, chunk and embed them using Amazon Bedrock Titan Embeddings, store vectors in PostgreSQL with pgvector, and perform RAG-based question answering against the indexed content. Document processing (text extraction, chunking, embedding) is handled asynchronously by a dedicated worker service via SQS.
 
 ## 2. Functional Requirements
 
@@ -23,12 +23,26 @@ A fullstack web application that allows users to upload documents (PDF, TXT, CSV
 
 ### 2.3 Document Management
 
-- **Upload**: Users upload PDF, TXT, or CSV files (max 10 MB). The system saves the file to S3, extracts full text, chunks the text, generates embeddings via Bedrock Titan, stores chunks with vectors in PostgreSQL (pgvector), and saves metadata.
-- **List**: Users see a paginated list of their uploaded documents with filename, type, status, and upload date.
+- **Upload**: Users select up to 5 TXT files (max 10 MB each) and click "Upload Documents". The backend uploads each file to S3, creates document metadata rows, creates a RAG job, and sends an SQS message. Processing happens asynchronously in the RAG worker.
+- **List**: Users see a list of their uploaded documents with filename, type, status, and upload date.
 - **View**: Users view document details including metadata and a text preview (first 500 characters).
 - **Delete**: Users delete documents. The system soft-deletes in the database, deletes associated chunks, and removes from S3.
+- **Supported file types**: `.txt`.
 
-### 2.4 Question Answering (RAG)
+### 2.4 Async RAG Pipeline
+
+- Each upload creates a **RAG job** that groups all uploaded documents.
+- Only one active RAG job (pending or processing) is allowed per user at a time, enforced by a unique partial index on `rag_jobs(user_id) WHERE status IN ('pending', 'processing')`.
+- The RAG worker polls SQS, picks up the job, and processes each document independently (extract text, chunk, embed, store vectors).
+- Per-document status: `processing` → `ready` | `failed`.
+- Job status: `pending` → `processing` → `success` | `partial_success` | `failure`.
+  - `success`: all documents processed successfully.
+  - `partial_success`: some documents succeeded, some failed (`documents_failed > 0`).
+  - `failure`: all documents failed.
+- The frontend polls `GET /api/rag-jobs/active` while a job is in progress and shows per-document status.
+- No cross-tab sync — a second browser tab only sees job status on page load or refresh.
+
+### 2.5 Question Answering (RAG)
 
 - Users submit a natural language question.
 - The system embeds the question using Bedrock Titan Embeddings, then performs a cosine similarity search against stored chunks in PostgreSQL (pgvector).
@@ -38,7 +52,8 @@ A fullstack web application that allows users to upload documents (PDF, TXT, CSV
 ## 3. Non-Functional Requirements
 
 - **File size limit**: 10 MB per upload.
-- **Supported file types**: `.pdf`, `.txt`, `.csv`.
+- **Supported file types**: `.txt`.
+- **Max files per upload**: 5.
 - **Generated passwords**: System-generated, 16 characters, mixed alphanumeric + symbols.
 - **Token security**: Access token in memory (not localStorage), refresh token in httpOnly secure cookie.
 - **CORS**: Backend allows requests from the frontend origin only.
@@ -48,9 +63,11 @@ A fullstack web application that allows users to upload documents (PDF, TXT, CSV
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.14, FastAPI, SQLAlchemy, Pydantic |
+| RAG Worker | Python 3.14, SQS consumer (separate ECS service) |
 | Frontend | SvelteKit (SPA mode), TypeScript, adapter-node |
 | Database | PostgreSQL 18 (AWS RDS) |
 | Object Storage | AWS S3 |
+| Message Queue | AWS SQS |
 | Vector Search | pgvector extension on PostgreSQL |
 | LLM | Anthropic Claude Sonnet via Amazon Bedrock |
 | Embeddings | Amazon Titan Embeddings V2 (via Bedrock) |
@@ -65,9 +82,9 @@ A fullstack web application that allows users to upload documents (PDF, TXT, CSV
 
 The data model is relational (users own documents, documents have metadata). PostgreSQL provides foreign keys, JOINs, transactional guarantees, and is the conventional choice for web applications. Query patterns are predictable and low-volume. RDS `db.t4g.micro` is cost-comparable to DynamoDB for this workload.
 
-### 5.2 pdfplumber for PDF Text Extraction
+### 5.2 Text Extraction
 
-pdfplumber produces higher-quality text extraction than PyPDF2, especially for PDFs with complex layouts and tables. For CSV, the stdlib `csv` module is sufficient. Full text is extracted for chunking and embedding; a truncated preview is stored in document metadata.
+Only `.txt` files are supported. Full text is decoded as UTF-8 for chunking and embedding; a truncated preview (first 500 characters) is stored in document metadata.
 
 ### 5.3 pgvector on RDS instead of Bedrock Knowledge Base
 
@@ -94,6 +111,10 @@ SvelteKit runs in SPA mode with all data fetching via `fetch()` to the FastAPI b
 - Access token: 30-minute expiry, stored in frontend memory.
 - Refresh token: 7-day expiry, httpOnly secure cookie, rotated on each use.
 - JWT secret stored in AWS Secrets Manager, injected as ECS task environment variable.
+
+### 5.8 Async RAG Pipeline via SQS
+
+Document processing (text extraction, chunking, embedding) is decoupled from the upload request via SQS. This avoids ALB timeout issues (60s default) when processing large or multiple documents. A dedicated `kbqa-rag` ECS service polls SQS and processes documents independently. This also allows the worker to scale independently from the backend.
 
 ## 6. API Specification
 
@@ -221,29 +242,31 @@ Cannot delete admin users. Errors: `404`, `403` (not admin or target is admin).
 
 ### 6.4 Documents
 
-**POST `/api/documents/upload`** — Bearer auth
+**POST `/api/documents/`** — Bearer auth
 
-Request: `multipart/form-data` with field `file`.
+Request: `multipart/form-data` with field `files` (up to 5 TXT files).
 
 Response `201`:
 ```json
 {
-  "id": "d1a2b3c4-...",
-  "filename": "report.pdf",
-  "file_type": "pdf",
-  "file_size_bytes": 245760,
-  "s3_key": "documents/550e8400.../d1a2b3c4.pdf",
-  "status": "processing",
-  "text_preview": null,
-  "created_at": "2026-09-05T10:05:00Z"
+  "job_id": "a1b2c3d4-...",
+  "documents": [
+    {
+      "id": "d1a2b3c4-...",
+      "filename": "notes.txt",
+      "file_type": "txt",
+      "file_size_bytes": 24576,
+      "status": "processing"
+    }
+  ]
 }
 ```
 
-Errors: `415` (unsupported file type), `413` (file too large).
+Errors: `400` (unsupported file type — only `.txt` allowed), `413` (file too large), `409` (a RAG job is already in progress).
 
 ---
 
-**GET `/api/documents?page=1&page_size=20`** — Bearer auth
+**GET `/api/documents/`** — Bearer auth
 
 Response `200`:
 ```json
@@ -251,16 +274,14 @@ Response `200`:
   "items": [
     {
       "id": "d1a2b3c4-...",
-      "filename": "report.pdf",
-      "file_type": "pdf",
-      "file_size_bytes": 245760,
-      "status": "indexed",
+      "filename": "notes.txt",
+      "file_type": "txt",
+      "file_size_bytes": 24576,
+      "status": "ready",
       "created_at": "2026-09-05T10:05:00Z"
     }
   ],
-  "total": 42,
-  "page": 1,
-  "page_size": 20
+  "total": 42
 }
 ```
 
@@ -272,13 +293,12 @@ Response `200`:
 ```json
 {
   "id": "d1a2b3c4-...",
-  "filename": "report.pdf",
-  "file_type": "pdf",
-  "file_size_bytes": 245760,
-  "s3_key": "documents/550e8400.../d1a2b3c4.pdf",
-  "status": "indexed",
-  "text_preview": "This report covers Q3 2026 financial results...",
-  "page_count": 12,
+  "filename": "notes.txt",
+  "file_type": "txt",
+  "file_size_bytes": 24576,
+  "s3_key": "documents/550e8400.../d1a2b3c4/notes.txt",
+  "status": "ready",
+  "text_preview": "This document covers the project requirements...",
   "created_at": "2026-09-05T10:05:00Z",
   "indexed_at": "2026-09-05T10:06:30Z"
 }
@@ -297,7 +317,58 @@ Response `200`:
 
 Soft-deletes in DB, deletes associated chunks, removes from S3. Errors: `404`.
 
-### 6.5 Question Answering
+### 6.5 RAG Jobs
+
+**GET `/api/rag-jobs/active`** — Bearer auth
+
+Returns the user's currently active RAG job (pending or processing), or `null`.
+
+Response `200`:
+```json
+{
+  "job": {
+    "id": "a1b2c3d4-...",
+    "status": "processing",
+    "total_documents": 3,
+    "documents_processed": 1,
+    "documents_failed": 0,
+    "created_at": "2026-09-05T10:05:00Z",
+    "documents": [
+      { "id": "d1a2b3c4-...", "filename": "notes.txt", "status": "ready" },
+      { "id": "d2a3b4c5-...", "filename": "report.txt", "status": "processing" },
+      { "id": "d3a4b5c6-...", "filename": "data.txt", "status": "processing" }
+    ]
+  }
+}
+```
+
+Returns `{ "job": null }` when no active job exists.
+
+---
+
+**GET `/api/rag-jobs/`** — Bearer auth
+
+Returns the user's RAG job history (all finished jobs).
+
+Response `200`:
+```json
+{
+  "items": [
+    {
+      "id": "a1b2c3d4-...",
+      "status": "success",
+      "total_documents": 3,
+      "documents_processed": 3,
+      "documents_failed": 0,
+      "created_at": "2026-09-05T10:05:00Z",
+      "completed_at": "2026-09-05T10:08:30Z"
+    }
+  ],
+  "total": 12
+}
+```
+
+### 6.6 Question Answering
 
 **POST `/api/qa/ask`** — Bearer auth
 
@@ -316,7 +387,7 @@ Response `200`:
   "sources": [
     {
       "document_id": "d1a2b3c4-...",
-      "filename": "report.pdf",
+      "filename": "report.txt",
       "excerpt": "Total revenue for Q3 2026 reached $4.2 billion...",
       "relevance_score": 0.92
     }
@@ -325,7 +396,7 @@ Response `200`:
 }
 ```
 
-Errors: `422` (question must be 1–1000 characters).
+Errors: `422` (question must be 1-1000 characters).
 
 ## 7. Database Schema
 
@@ -345,6 +416,39 @@ Indexes: `ix_users_username` (unique), `ix_users_email` (unique).
 
 The initial admin user is seeded during application startup if no admin exists, using `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` environment variables.
 
+### Table: `rag_jobs`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `UUID` | PK, default `gen_random_uuid()` |
+| `user_id` | `UUID` | FK → `users.id`, NOT NULL |
+| `status` | `VARCHAR(20)` | NOT NULL, default `'pending'` |
+| `total_documents` | `INTEGER` | NOT NULL |
+| `documents_processed` | `INTEGER` | NOT NULL, default `0` |
+| `documents_failed` | `INTEGER` | NOT NULL, default `0` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, default `now()` |
+| `completed_at` | `TIMESTAMPTZ` | NULLABLE |
+
+Status values: `pending`, `processing`, `success`, `partial_success` (if `documents_failed > 0`), `failure`.
+
+Indexes: unique partial index on `(user_id) WHERE status IN ('pending', 'processing')` to enforce one active job per user.
+
+### Table: `rag_job_documents`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `UUID` | PK, default `gen_random_uuid()` |
+| `rag_job_id` | `UUID` | FK → `rag_jobs.id`, NOT NULL |
+| `document_id` | `UUID` | FK → `documents.id`, NOT NULL |
+| `status` | `VARCHAR(20)` | NOT NULL, default `'pending'` |
+| `error_message` | `TEXT` | NULLABLE |
+| `started_at` | `TIMESTAMPTZ` | NULLABLE |
+| `completed_at` | `TIMESTAMPTZ` | NULLABLE |
+
+Status values: `pending`, `processing`, `ready`, `failed`.
+
+Indexes: unique index on `(rag_job_id, document_id)`.
+
 ### Table: `documents`
 
 | Column | Type | Constraints |
@@ -352,17 +456,16 @@ The initial admin user is seeded during application startup if no admin exists, 
 | `id` | `UUID` | PK, default `gen_random_uuid()` |
 | `user_id` | `UUID` | FK → `users.id`, NOT NULL |
 | `filename` | `VARCHAR(255)` | NOT NULL |
-| `file_type` | `VARCHAR(10)` | NOT NULL, CHECK in ('pdf','txt','csv') |
+| `file_type` | `VARCHAR(10)` | NOT NULL, CHECK in ('txt') |
 | `file_size_bytes` | `INTEGER` | NOT NULL |
 | `s3_key` | `VARCHAR(512)` | NOT NULL, UNIQUE |
-| `status` | `VARCHAR(20)` | NOT NULL, default 'processing' |
+| `status` | `VARCHAR(20)` | NOT NULL, default `'pending'` |
 | `text_preview` | `TEXT` | NULLABLE |
-| `page_count` | `INTEGER` | NULLABLE |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL, default `now()` |
 | `indexed_at` | `TIMESTAMPTZ` | NULLABLE |
 | `deleted_at` | `TIMESTAMPTZ` | NULLABLE (soft delete) |
 
-Status values: `processing`, `indexed`, `failed`, `deleted`.
+Status values: `pending`, `ready`, `failed`.
 
 Indexes: `ix_documents_user_id`, `ix_documents_status`, `ix_documents_s3_key` (unique).
 

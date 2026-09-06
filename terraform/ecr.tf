@@ -33,6 +33,33 @@ resource "aws_ecr_lifecycle_policy" "backend" {
   })
 }
 
+resource "aws_ecr_repository" "rag" {
+  name                 = "${var.project_name}-rag"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+
+  tags = local.tags
+}
+
+resource "aws_ecr_lifecycle_policy" "rag" {
+  repository = aws_ecr_repository.rag.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 5 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 5
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
 resource "aws_ecr_lifecycle_policy" "frontend" {
   repository = aws_ecr_repository.frontend.name
 
