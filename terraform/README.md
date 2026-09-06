@@ -53,6 +53,10 @@ VPC and database outputs are published to SSM Parameter Store for consumption by
 | `/<project>/s3/data-bucket-arn`     | String       | Data bucket ARN                    |
 | `/<project>/ecs/cluster-name`       | String       | ECS cluster name                   |
 | `/<project>/ecs/cluster-arn`        | String       | ECS cluster ARN                    |
+| `/<project>/alb/arn`                | String       | ALB ARN                            |
+| `/<project>/alb/dns-name`          | String       | ALB DNS name                       |
+| `/<project>/alb/http-listener-arn` | String       | ALB HTTP listener ARN              |
+| `/<project>/alb/security-group-id` | String       | ALB security group ID              |
 
 ### RDS PostgreSQL (`rds.tf`)
 
@@ -93,6 +97,13 @@ Keyless authentication for GitHub Actions via OIDC federation:
 - **Deployment Role** — `kbqa-deployment-role` with `AdministratorAccess`
 - **Trust Policy** — scoped to the `dipanjank/knowledge-base-qa-webapp` repository (owner and repo IDs in the subject claim)
 
+### ALB (`alb.tf`)
+
+Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Routes traffic to Fargate tasks in the private subnets.
+
+- **Security Group** — `kbqa-alb-sg` allows inbound HTTP (80) and HTTPS (443) from anywhere
+- **HTTP Listener** — Returns 404 by default; ECS services register target groups with path-based routing rules
+
 ### ECS Cluster (`ecs.tf`)
 
 Fargate-based ECS cluster (`kbqa-cluster`) for running application containers in the VPC private subnets. Container Insights enabled for monitoring. Uses the `FARGATE` capacity provider as default.
@@ -129,6 +140,10 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 | `data_bucket_arn`            | ARN of the S3 data bucket                 |
 | `ecs_cluster_name`           | Name of the ECS cluster                   |
 | `ecs_cluster_arn`            | ARN of the ECS cluster                    |
+| `alb_arn`                    | ARN of the ALB                            |
+| `alb_dns_name`               | DNS name of the ALB                       |
+| `alb_http_listener_arn`      | ARN of the ALB HTTP listener              |
+| `alb_security_group_id`      | ID of the ALB security group              |
 
 ## SSM Parameters
 
@@ -146,11 +161,16 @@ All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 | `/kbqa/s3/data-bucket-arn`    | String       | Data bucket ARN                    |
 | `/kbqa/ecs/cluster-name`      | String       | ECS cluster name                   |
 | `/kbqa/ecs/cluster-arn`       | String       | ECS cluster ARN                    |
+| `/kbqa/alb/arn`               | String       | ALB ARN                            |
+| `/kbqa/alb/dns-name`          | String       | ALB DNS name                       |
+| `/kbqa/alb/http-listener-arn` | String       | ALB HTTP listener ARN              |
+| `/kbqa/alb/security-group-id` | String       | ALB security group ID              |
 
 ## File Layout
 
 ```
 terraform/
+├── alb.tf              # Application Load Balancer and security group
 ├── backend.tf          # S3 remote state configuration
 ├── ecs.tf              # ECS Fargate cluster
 ├── ecr.tf              # ECR repositories and lifecycle policies
