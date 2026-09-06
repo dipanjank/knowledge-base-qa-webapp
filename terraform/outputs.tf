@@ -42,3 +42,13 @@ output "database_security_group_id" {
   description = "ID of the database security group"
   value       = aws_security_group.database.id
 }
+
+output "data_bucket_name" {
+  description = "Name of the S3 data bucket"
+  value       = module.data_bucket.s3_bucket_id
+}
+
+output "data_bucket_arn" {
+  description = "ARN of the S3 data bucket"
+  value       = module.data_bucket.s3_bucket_arn
+}

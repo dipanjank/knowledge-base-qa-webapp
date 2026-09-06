@@ -49,6 +49,8 @@ VPC and database outputs are published to SSM Parameter Store for consumption by
 | `/<project>/vpc/private-subnet-ids` | StringList   | Comma-separated private subnet IDs |
 | `/<project>/db/username`            | String       | Database master username           |
 | `/<project>/db/password`            | SecureString | Database master password           |
+| `/<project>/s3/data-bucket-name`    | String       | Data bucket name                   |
+| `/<project>/s3/data-bucket-arn`     | String       | Data bucket ARN                    |
 
 ### RDS PostgreSQL (`rds.tf`)
 
@@ -89,6 +91,10 @@ Keyless authentication for GitHub Actions via OIDC federation:
 - **Deployment Role** — `kbqa-deployment-role` with `AdministratorAccess`
 - **Trust Policy** — scoped to the `dipanjank/knowledge-base-qa-webapp` repository (owner and repo IDs in the subject claim)
 
+### Data Bucket (`s3.tf`)
+
+S3 bucket for document uploads (`kbqa-data`), created using [`terraform-aws-modules/s3-bucket/aws`](https://registry.terraform.io/modules/terraform-aws-modules/s3-bucket/aws) 5.15.4. Versioning enabled, all public access blocked. Bucket name and ARN are published to SSM Parameter Store.
+
 ### State Bucket (`state_bucket.tf`)
 
 S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-bucket/aws`](https://registry.terraform.io/modules/terraform-aws-modules/s3-bucket/aws) 5.15.4. Versioning enabled, all public access blocked.
@@ -113,6 +119,8 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 | `rds_endpoint`               | Endpoint of the RDS instance              |
 | `rds_port`                   | Port of the RDS instance                  |
 | `database_security_group_id` | ID of the database security group         |
+| `data_bucket_name`           | Name of the S3 data bucket                |
+| `data_bucket_arn`            | ARN of the S3 data bucket                 |
 
 ## SSM Parameters
 
@@ -126,6 +134,8 @@ All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 | `/kbqa/vpc/private-subnet-ids` | StringList   | Comma-separated private subnet IDs |
 | `/kbqa/db/username`            | String       | Database master username           |
 | `/kbqa/db/password`            | SecureString | Database master password           |
+| `/kbqa/s3/data-bucket-name`   | String       | Data bucket name                   |
+| `/kbqa/s3/data-bucket-arn`    | String       | Data bucket ARN                    |
 
 ## File Layout
 
@@ -138,7 +148,8 @@ terraform/
 ├── outputs.tf          # Terraform outputs
 ├── providers.tf        # AWS provider configuration
 ├── rds.tf              # RDS PostgreSQL instance and security group
-├── ssm.tf              # SSM parameters for VPC outputs
+├── s3.tf               # S3 data bucket for document uploads
+├── ssm.tf              # SSM parameters for shared outputs
 ├── state_bucket.tf     # S3 state bucket
 ├── variables.tf        # Input variables
 ├── versions.tf         # Terraform and provider version constraints
