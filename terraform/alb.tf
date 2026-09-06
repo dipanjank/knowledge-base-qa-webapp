@@ -52,6 +52,44 @@ resource "aws_lb_listener" "http" {
   tags = local.tags
 }
 
+resource "aws_lb_listener_rule" "backend" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*", "/docs", "/openapi.json"]
+    }
+  }
+
+  tags = local.tags
+}
+
+resource "aws_lb_target_group" "backend" {
+  name        = "${var.project_name}-backend"
+  port        = 8000
+  protocol    = "HTTP"
+  vpc_id      = module.vpc.vpc_id
+  target_type = "ip"
+
+  health_check {
+    path                = "/api/health"
+    port                = "traffic-port"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200"
+  }
+
+  tags = local.tags
+}
+
 resource "aws_lb_target_group" "frontend" {
   name        = "${var.project_name}-frontend"
   port        = 3000

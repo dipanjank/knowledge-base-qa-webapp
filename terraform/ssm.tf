@@ -94,6 +94,38 @@ resource "aws_ssm_parameter" "alb_security_group_id" {
   tags = local.tags
 }
 
+resource "aws_ssm_parameter" "database_url" {
+  name  = "/${var.project_name}/db/url"
+  type  = "SecureString"
+  value = "postgresql://${var.project_name}_admin:${random_password.db.result}@${module.rds.db_instance_address}:${module.rds.db_instance_port}/${var.project_name}"
+
+  tags = local.tags
+}
+
+resource "aws_ssm_parameter" "jwt_secret" {
+  name  = "/${var.project_name}/app/jwt-secret"
+  type  = "SecureString"
+  value = random_password.jwt_secret.result
+
+  tags = local.tags
+}
+
+resource "aws_ssm_parameter" "admin_username" {
+  name  = "/${var.project_name}/app/admin-username"
+  type  = "String"
+  value = var.admin_username
+
+  tags = local.tags
+}
+
+resource "aws_ssm_parameter" "admin_password" {
+  name  = "/${var.project_name}/app/admin-password"
+  type  = "SecureString"
+  value = random_password.admin.result
+
+  tags = local.tags
+}
+
 resource "aws_ssm_parameter" "ecs_cluster_name" {
   name  = "/${var.project_name}/ecs/cluster-name"
   type  = "String"

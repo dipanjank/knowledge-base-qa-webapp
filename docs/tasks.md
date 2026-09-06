@@ -54,8 +54,8 @@
 - [x] **5.2** Provision storage and registry (S3 bucket, ECR repositories)
 - [x] **5.3** Provision database (RDS PostgreSQL with pgvector)
 - [x] **5.4** Provision compute and load balancing (ECS Fargate, ALB with path-based routing)
-- [ ] **5.5** Provision IAM roles with least-privilege access for ECS tasks
-- [ ] **5.6** Wire all modules together and validate
+- [x] **5.5** Provision IAM roles with least-privilege access for ECS tasks
+- [x] **5.6** Wire all modules together and validate
 
 ## Epic 6: CI/CD
 
