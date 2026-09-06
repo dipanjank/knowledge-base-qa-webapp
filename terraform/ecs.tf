@@ -75,20 +75,19 @@ module "frontend_service" {
 
   subnet_ids = module.vpc.private_subnets
 
-  security_group_rules = {
-    ingress_alb = {
-      type                     = "ingress"
-      from_port                = 3000
-      to_port                  = 3000
-      protocol                 = "tcp"
-      source_security_group_id = aws_security_group.alb.id
+  security_group_ingress_rules = {
+    alb = {
+      from_port                    = 3000
+      to_port                      = 3000
+      ip_protocol                  = "tcp"
+      referenced_security_group_id = aws_security_group.alb.id
     }
-    egress_all = {
-      type        = "egress"
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  security_group_egress_rules = {
+    all = {
+      ip_protocol = "-1"
+      cidr_ipv4   = "0.0.0.0/0"
     }
   }
 
