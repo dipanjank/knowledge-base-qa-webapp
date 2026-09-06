@@ -82,3 +82,18 @@ output "ecs_cluster_arn" {
   description = "ARN of the ECS cluster"
   value       = aws_ecs_cluster.main.arn
 }
+
+output "sqs_rag_queue_url" {
+  description = "URL of the RAG SQS queue"
+  value       = aws_sqs_queue.rag.url
+}
+
+output "sqs_rag_queue_arn" {
+  description = "ARN of the RAG SQS queue"
+  value       = aws_sqs_queue.rag.arn
+}
+
+output "sqs_rag_dlq_url" {
+  description = "URL of the RAG SQS dead-letter queue"
+  value       = aws_sqs_queue.rag_dlq.url
+}
