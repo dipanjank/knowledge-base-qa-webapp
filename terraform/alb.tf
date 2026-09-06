@@ -63,7 +63,7 @@ resource "aws_lb_listener_rule" "backend" {
 
   condition {
     path_pattern {
-      values = ["/api/*", "/health", "/docs", "/openapi.json"]
+      values = ["/api/*", "/docs", "/openapi.json"]
     }
   }
 
@@ -78,7 +78,7 @@ resource "aws_lb_target_group" "backend" {
   target_type = "ip"
 
   health_check {
-    path                = "/health"
+    path                = "/api/health"
     port                = "traffic-port"
     healthy_threshold   = 2
     unhealthy_threshold = 3

@@ -39,7 +39,7 @@ VPC created using [`terraform-aws-modules/vpc/aws`](https://registry.terraform.i
 
 ### SSM Parameters (`ssm.tf`)
 
-VPC and database outputs are published to SSM Parameter Store for consumption by other services:
+Infrastructure and application outputs are published to SSM Parameter Store:
 
 | Parameter                           | Type         | Description                        |
 |-------------------------------------|--------------|------------------------------------|
@@ -49,8 +49,12 @@ VPC and database outputs are published to SSM Parameter Store for consumption by
 | `/<project>/vpc/private-subnet-ids` | StringList   | Comma-separated private subnet IDs |
 | `/<project>/db/username`            | String       | Database master username           |
 | `/<project>/db/password`            | SecureString | Database master password           |
+| `/<project>/db/url`                 | SecureString | Full database connection URL       |
 | `/<project>/s3/data-bucket-name`    | String       | Data bucket name                   |
 | `/<project>/s3/data-bucket-arn`     | String       | Data bucket ARN                    |
+| `/<project>/app/jwt-secret`         | SecureString | JWT signing secret                 |
+| `/<project>/app/admin-username`     | String       | Initial admin username             |
+| `/<project>/app/admin-password`     | SecureString | Initial admin password             |
 | `/<project>/ecs/cluster-name`       | String       | ECS cluster name                   |
 | `/<project>/ecs/cluster-arn`        | String       | ECS cluster ARN                    |
 | `/<project>/alb/arn`                | String       | ALB ARN                            |
@@ -103,8 +107,8 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 
 - **Security Group** — `kbqa-alb-sg` allows inbound HTTP (80) and HTTPS (443) from anywhere
 - **HTTP Listener** — Forwards to the frontend target group by default
-- **Backend Listener Rule** — Routes `/api/*`, `/health`, `/docs`, `/openapi.json` to the backend target group (priority 100)
-- **Backend Target Group** — IP-based target group on port 8000, health-checked on `/health`
+- **Backend Listener Rule** — Routes `/api/*`, `/docs`, `/openapi.json` to the backend target group (priority 100)
+- **Backend Target Group** — IP-based target group on port 8000, health-checked on `/api/health`
 - **Frontend Target Group** — IP-based target group on port 3000, health-checked on `/`
 
 ### ECS Cluster (`ecs_cluster.tf`)
@@ -113,7 +117,7 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 
 ### Frontend Service (`ecs_frontend.tf`)
 
-`kbqa-frontend` Fargate service using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
+`kbqa-frontend` Fargate service (1 task, no autoscaling) using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
 
 | Setting    | Value                                  |
 |------------|----------------------------------------|
@@ -125,15 +129,15 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 
 ### Backend Service (`ecs_backend.tf`)
 
-`kbqa-backend` Fargate service using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
+`kbqa-backend` Fargate service (1 task, no autoscaling) using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
 
 | Setting     | Value                                                      |
 |-------------|------------------------------------------------------------|
 | CPU         | 512 (0.5 vCPU)                                            |
 | Memory      | 1024 MB                                                    |
 | Container   | `kbqa-backend` ECR image on port 8000                      |
-| Environment | `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `AWS_DEFAULT_REGION`, `S3_BUCKET_NAME` |
-| Secrets     | `DATABASE_PASSWORD` from SSM                               |
+| Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`, `BEDROCK_MODEL_ID`, `BEDROCK_EMBEDDING_MODEL_ID`, `ADMIN_USERNAME`, `ADMIN_EMAIL` |
+| Secrets     | `DATABASE_URL`, `JWT_SECRET`, `ADMIN_PASSWORD` from SSM    |
 | Logging     | CloudWatch (`/ecs/kbqa-backend`, 7d)                       |
 | Networking  | Private subnets, ALB ingress on 8000                       |
 
@@ -147,10 +151,14 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 
 ## Variables
 
-| Name           | Description                           | Default     |
-|----------------|---------------------------------------|-------------|
-| `aws_region`   | AWS region                            | `eu-west-1` |
-| `project_name` | Project name used for resource naming | `kbqa`      |
+| Name                         | Description                  | Default                               |
+|------------------------------|------------------------------|---------------------------------------|
+| `aws_region`                 | AWS region                   | `eu-west-1`                           |
+| `project_name`               | Project name for resources   | `kbqa`                                |
+| `admin_username`             | Initial admin username       | `admin`                               |
+| `admin_email`                | Initial admin email          | `admin@kbqa.local`                    |
+| `bedrock_model_id`           | Bedrock LLM model ID        | `anthropic.claude-sonnet-4-20250514-v1:0` |
+| `bedrock_embedding_model_id` | Bedrock embedding model ID   | `amazon.titan-embed-text-v2:0`        |
 
 ## Outputs
 
@@ -186,8 +194,12 @@ All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 | `/kbqa/vpc/private-subnet-ids` | StringList   | Comma-separated private subnet IDs |
 | `/kbqa/db/username`            | String       | Database master username           |
 | `/kbqa/db/password`            | SecureString | Database master password           |
+| `/kbqa/db/url`                 | SecureString | Full database connection URL       |
 | `/kbqa/s3/data-bucket-name`   | String       | Data bucket name                   |
 | `/kbqa/s3/data-bucket-arn`    | String       | Data bucket ARN                    |
+| `/kbqa/app/jwt-secret`        | SecureString | JWT signing secret                 |
+| `/kbqa/app/admin-username`    | String       | Initial admin username             |
+| `/kbqa/app/admin-password`    | SecureString | Initial admin password             |
 | `/kbqa/ecs/cluster-name`      | String       | ECS cluster name                   |
 | `/kbqa/ecs/cluster-arn`       | String       | ECS cluster ARN                    |
 | `/kbqa/alb/arn`               | String       | ALB ARN                            |
@@ -205,7 +217,7 @@ terraform/
 ├── ecs_cluster.tf      # ECS Fargate cluster
 ├── ecs_frontend.tf     # ECS Fargate frontend service
 ├── ecr.tf              # ECR repositories and lifecycle policies
-├── main.tf             # Local values (tags)
+├── main.tf             # Local values (tags, image versions) and generated secrets
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role
 ├── outputs.tf          # Terraform outputs
 ├── providers.tf        # AWS provider configuration
