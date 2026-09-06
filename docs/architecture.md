@@ -124,7 +124,7 @@ Browser                    ALB              Backend          Bedrock Embed   Bed
   │                         │                  │    question)     │               │             │
   │                         │                  │                  │               │             │
   │                         │                  │── InvokeModel() ─┼──────────────▶│             │
-  │                         │                  │   (Claude)       │               │             │
+  │                         │                  │   (Qwen3)        │               │             │
   │                         │                  │◀── answer ───────┼───────────────│             │
   │                         │                  │                  │               │             │
   │◀─── 200 { answer, ─────│◀── response ─────│                  │               │             │

@@ -40,8 +40,8 @@
 
 ### Stories
 
-- [ ] **4.1** Create `rag_jobs` table and SQLModel model with status tracking (pending/processing/completed/part_completed/failed)
-- [ ] **4.2** Add `rag_job_id` FK to documents table linking documents to their RAG job
+- [x] **4.1** Create `rag_jobs` table and SQLModel model with status tracking (pending/processing/completed/part_completed/failed)
+- [x] **4.2** Add `rag_job_id` FK to documents table linking documents to their RAG job
 - [ ] **4.3** Create RAG job schema, repository, service, and router (`GET /api/rag-jobs/active`, `GET /api/rag-jobs/`)
 - [ ] **4.4** Create SQS service for sending messages from the backend
 - [ ] **4.5** Rewrite document upload to accept up to 5 files, create a RAG job, upload all to S3, and send an SQS message
@@ -85,8 +85,7 @@
 
 - [x] **7.1** Pull requests trigger automated linting, tests, and Terraform validation
 - [x] **7.2** Merges to main build and push Docker images to ECR and deploy to ECS
-- [ ] **7.3** Add CI/CD workflow for rag-service (lint, test, build, push to kbqa-rag ECR repo)
-- [ ] **7.4** Add SQS_QUEUE_URL to backend CI test environment
+- [x] **7.3** Add CI/CD workflow for rag-service (lint, test, build, push to kbqa-rag ECR repo)
 
 ## Epic 8: Testing & Documentation
 

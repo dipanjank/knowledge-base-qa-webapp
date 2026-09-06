@@ -25,7 +25,7 @@ variable "admin_email" {
 variable "bedrock_model_id" {
   description = "Bedrock model ID for LLM"
   type        = string
-  default     = "anthropic.claude-sonnet-4-20250514-v1:0"
+  default     = "qwen.qwen3-next-80b-a3b"
 }
 
 variable "bedrock_embedding_model_id" {
