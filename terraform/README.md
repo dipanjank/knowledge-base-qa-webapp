@@ -51,6 +51,8 @@ VPC and database outputs are published to SSM Parameter Store for consumption by
 | `/<project>/db/password`            | SecureString | Database master password           |
 | `/<project>/s3/data-bucket-name`    | String       | Data bucket name                   |
 | `/<project>/s3/data-bucket-arn`     | String       | Data bucket ARN                    |
+| `/<project>/ecs/cluster-name`       | String       | ECS cluster name                   |
+| `/<project>/ecs/cluster-arn`        | String       | ECS cluster ARN                    |
 
 ### RDS PostgreSQL (`rds.tf`)
 
@@ -91,6 +93,10 @@ Keyless authentication for GitHub Actions via OIDC federation:
 - **Deployment Role** — `kbqa-deployment-role` with `AdministratorAccess`
 - **Trust Policy** — scoped to the `dipanjank/knowledge-base-qa-webapp` repository (owner and repo IDs in the subject claim)
 
+### ECS Cluster (`ecs.tf`)
+
+Fargate-based ECS cluster (`kbqa-cluster`) for running application containers in the VPC private subnets. Container Insights enabled for monitoring. Uses the `FARGATE` capacity provider as default.
+
 ### Data Bucket (`s3.tf`)
 
 S3 bucket for document uploads (`kbqa-data`), created using [`terraform-aws-modules/s3-bucket/aws`](https://registry.terraform.io/modules/terraform-aws-modules/s3-bucket/aws) 5.15.4. Versioning enabled, all public access blocked. Bucket name and ARN are published to SSM Parameter Store.
@@ -121,6 +127,8 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 | `database_security_group_id` | ID of the database security group         |
 | `data_bucket_name`           | Name of the S3 data bucket                |
 | `data_bucket_arn`            | ARN of the S3 data bucket                 |
+| `ecs_cluster_name`           | Name of the ECS cluster                   |
+| `ecs_cluster_arn`            | ARN of the ECS cluster                    |
 
 ## SSM Parameters
 
@@ -136,12 +144,15 @@ All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 | `/kbqa/db/password`            | SecureString | Database master password           |
 | `/kbqa/s3/data-bucket-name`   | String       | Data bucket name                   |
 | `/kbqa/s3/data-bucket-arn`    | String       | Data bucket ARN                    |
+| `/kbqa/ecs/cluster-name`      | String       | ECS cluster name                   |
+| `/kbqa/ecs/cluster-arn`       | String       | ECS cluster ARN                    |
 
 ## File Layout
 
 ```
 terraform/
 ├── backend.tf          # S3 remote state configuration
+├── ecs.tf              # ECS Fargate cluster
 ├── ecr.tf              # ECR repositories and lifecycle policies
 ├── main.tf             # Local values (tags)
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role
