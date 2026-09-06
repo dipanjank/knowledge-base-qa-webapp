@@ -1,38 +1,34 @@
-name: Backend
+name: RAG Service
 
 on:
   pull_request:
     branches: [main]
-    paths: [backend/**]
+    paths: [rag-service/**]
   push:
     branches: [main]
-    paths: [backend/**]
+    paths: [rag-service/**]
 
 jobs:
   lint-and-test:
-    name: Backend — lint & test
+    name: RAG Service — lint & test
     uses: ./.github/workflows/python-lint-test.yml
     with:
-      directory: backend
+      directory: rag-service
       env-vars: >-
         {
           "DATABASE_URL": "postgresql://x:x@localhost/x",
-          "JWT_SECRET": "test-secret",
-          "JWT_ACCESS_TOKEN_EXPIRE_MINUTES": "30",
-          "JWT_REFRESH_TOKEN_EXPIRE_DAYS": "7",
           "AWS_REGION": "us-east-1",
           "S3_BUCKET_NAME": "test",
-          "ADMIN_USERNAME": "admin",
-          "ADMIN_EMAIL": "admin@test.com",
-          "ADMIN_PASSWORD": "admin"
+          "SQS_QUEUE_URL": "",
+          "BEDROCK_EMBEDDING_MODEL_ID": "test"
         }
 
   docker:
     needs: lint-and-test
     uses: ./.github/workflows/docker-build.yml
     with:
-      directory: backend
-      ecr-repo: kbqa-backend
+      directory: rag-service
+      ecr-repo: kbqa-rag
       aws-region: eu-west-1
       role-to-assume: arn:aws:iam::381665779871:role/kbqa-deployment-role
       publish: ${{ github.ref == 'refs/heads/main' }}

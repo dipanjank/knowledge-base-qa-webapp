@@ -63,15 +63,5 @@ CREATE TABLE IF NOT EXISTS rag_job_documents (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_rag_job_documents_job_doc
     ON rag_job_documents (rag_job_id, document_id);
 
-CREATE TABLE IF NOT EXISTS document_chunks (
-    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id     UUID            NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
-    chunk_index     INTEGER         NOT NULL,
-    chunk_text      TEXT            NOT NULL,
-    embedding       VECTOR(1024)    NOT NULL,
-    created_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS ix_document_chunks_document_id ON document_chunks (document_id);
-CREATE INDEX IF NOT EXISTS ix_document_chunks_embedding    ON document_chunks
-    USING hnsw (embedding vector_cosine_ops);
+-- Vector storage (langchain_pg_collection, langchain_pg_embedding) is managed
+-- automatically by LangChain's PGVector on first use.

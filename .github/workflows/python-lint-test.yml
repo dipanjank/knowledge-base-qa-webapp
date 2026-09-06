@@ -1,0 +1,37 @@
+name: Python Lint & Test
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: Folder containing the Python project
+        required: true
+        type: string
+      env-vars:
+        description: JSON object of environment variables for tests
+        required: true
+        type: string
+
+jobs:
+  lint-and-test:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.directory }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt && pip install .[dev]
+
+      - name: Lint
+        run: ruff check app/ tests/
+
+      - name: Test
+        env: ${{ fromJson(inputs.env-vars) }}
+        run: pytest -v

@@ -5,8 +5,8 @@ A fullstack web application for uploading documents (PDF, TXT, CSV), chunking an
 ## How It Works
 
 1. Admin creates user accounts (no self-registration)
-2. Users upload documents, which are stored in S3, chunked (500 tokens, 50 overlap), and embedded using Amazon Titan V2
-3. Embeddings are stored in PostgreSQL with pgvector for cosine similarity search
+2. Users upload documents (up to 5 at once), which are stored in S3 and queued for async processing via SQS
+3. A separate RAG worker service picks up the job, chunks text (500 tokens, 50 overlap), embeds using Amazon Titan V2, and stores vectors in PostgreSQL with pgvector
 4. Users ask natural language questions — the system retrieves relevant chunks, constructs a prompt, and gets an answer from Claude Sonnet via Bedrock
 5. Answers include source citations with document name, excerpt, and relevance score
 
@@ -20,7 +20,9 @@ A fullstack web application for uploading documents (PDF, TXT, CSV), chunking an
 | Object Storage | AWS S3 |
 | LLM | Claude Sonnet via Amazon Bedrock |
 | Embeddings | Amazon Titan V2 via Bedrock |
-| Infrastructure | Terraform (VPC, ECS Fargate, ALB, RDS, ECR) |
+| Async Processing | AWS SQS + dedicated ECS worker |
+| RAG Pipeline | LangChain (text splitting, embeddings, pgvector) |
+| Infrastructure | Terraform (VPC, ECS Fargate, ALB, SQS, RDS, ECR) |
 | CI/CD | GitHub Actions |
 
 ## Repository Structure
@@ -28,6 +30,7 @@ A fullstack web application for uploading documents (PDF, TXT, CSV), chunking an
 ```
 backend/        Python FastAPI REST API
 frontend/       SvelteKit SPA (TypeScript)
+rag-service/    Async document ingestion worker (SQS + LangChain)
 terraform/      AWS infrastructure as code
 sql/            Database table definitions
 docs/           Specification and task tracking
@@ -37,6 +40,7 @@ See component documentation:
 
 - [**Backend README**](backend/README.md) — API routes, architecture, environment variables, testing
 - [**Frontend README**](frontend/README.md) — Pages, auth flow, stores, components
+- [**RAG Service README**](rag-service/README.md) — Worker architecture, LangChain pipeline, deployment
 
 ## Quick Start
 
@@ -50,6 +54,7 @@ This starts:
 - **PostgreSQL** (pgvector) on port 5432
 - **Backend** on port 8000
 - **Frontend** on port 3000
+- **RAG Worker** (document ingestion via SQS)
 
 Login with the default admin credentials: `admin` / `admin`.
 
@@ -76,6 +81,6 @@ Tables are created manually via SQL — apply `sql/kbqa.sql` to PostgreSQL. The 
 
 ## Deployment
 
-Frontend and backend deploy as separate ECS Fargate services behind a shared ALB with path-based routing (`/api/*` to backend, `/*` to frontend). Same domain, no CORS.
+Frontend and backend deploy as separate ECS Fargate services behind a shared ALB with path-based routing (`/api/*` to backend, `/*` to frontend). The RAG worker runs as a standalone ECS service (no load balancer) polling SQS. Same domain, no CORS.
 
 All configuration is via environment variables — see [backend/README.md](backend/README.md) for the full list.

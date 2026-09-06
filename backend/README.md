@@ -81,8 +81,6 @@ All are required — no defaults.
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token TTL in days |
 | `AWS_REGION` | AWS region |
 | `S3_BUCKET_NAME` | S3 bucket for document storage |
-| `BEDROCK_MODEL_ID` | Bedrock LLM model ID |
-| `BEDROCK_EMBEDDING_MODEL_ID` | Bedrock embedding model ID |
 | `ADMIN_USERNAME` | Seed admin username |
 | `ADMIN_EMAIL` | Seed admin email |
 | `ADMIN_PASSWORD` | Seed admin password |
@@ -105,8 +103,6 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30 \
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7 \
 AWS_REGION=us-east-1 \
 S3_BUCKET_NAME=test \
-BEDROCK_MODEL_ID=test \
-BEDROCK_EMBEDDING_MODEL_ID=test \
 ADMIN_USERNAME=admin \
 ADMIN_EMAIL=admin@test.com \
 ADMIN_PASSWORD=admin \

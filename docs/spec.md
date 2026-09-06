@@ -26,7 +26,7 @@ A fullstack web application that allows users to upload TXT documents, chunk and
 - **Upload**: Users select up to 5 TXT files (max 10 MB each) and click "Upload Documents". The backend uploads each file to S3, creates document metadata rows, creates a RAG job, and sends an SQS message. Processing happens asynchronously in the RAG worker.
 - **List**: Users see a list of their uploaded documents with filename, type, status, and upload date.
 - **View**: Users view document details including metadata and a text preview (first 500 characters).
-- **Delete**: Users delete documents. The system soft-deletes in the database, deletes associated chunks, and removes from S3.
+- **Delete**: Users delete documents. The system soft-deletes in the database, removes associated embeddings from the vector store, and removes from S3.
 - **Supported file types**: `.txt`.
 
 ### 2.4 Async RAG Pipeline
@@ -63,7 +63,7 @@ A fullstack web application that allows users to upload TXT documents, chunk and
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.14, FastAPI, SQLAlchemy, Pydantic |
-| RAG Worker | Python 3.14, SQS consumer (separate ECS service) |
+| RAG Worker | Python 3.14, LangChain, SQS consumer (separate ECS service) |
 | Frontend | SvelteKit (SPA mode), TypeScript, adapter-node |
 | Database | PostgreSQL 18 (AWS RDS) |
 | Object Storage | AWS S3 |
@@ -88,13 +88,23 @@ Only `.txt` files are supported. Full text is decoded as UTF-8 for chunking and 
 
 ### 5.3 pgvector on RDS instead of Bedrock Knowledge Base
 
-Using pgvector on the existing RDS PostgreSQL instance instead of Bedrock Knowledge Base + OpenSearch Serverless. This consolidates all data into a single database, gives full control over the chunking and embedding pipeline, avoids the cost of OpenSearch Serverless, and simplifies the infrastructure. The trade-off is that chunking and embedding logic must be implemented in the application.
+Using pgvector on the existing RDS PostgreSQL instance instead of Bedrock Knowledge Base + OpenSearch Serverless. This consolidates all data into a single database, avoids the cost of OpenSearch Serverless, and simplifies the infrastructure.
 
-### 5.4 Chunking Strategy
+### 5.4 LangChain RAG Pipeline
 
-- Fixed-size chunking: 500 tokens per chunk with 50-token overlap.
-- Chunks are stored in a `document_chunks` table with their embedding vectors.
-- Each chunk retains a reference to its parent document and its position (chunk index).
+The RAG pipeline (ingestion and query) uses LangChain instead of a custom implementation. This provides battle-tested components for text splitting, embeddings, vector storage, and retrieval, reducing the amount of custom code and ensuring well-tested integration between pipeline stages.
+
+Key LangChain components:
+
+- **Text splitting**: `RecursiveCharacterTextSplitter.from_tiktoken_encoder` — splits on natural text boundaries (paragraphs, sentences, words) with token-based length measurement via tiktoken `cl100k_base` encoding. 500 tokens per chunk, 50-token overlap.
+- **Embeddings**: `BedrockEmbeddings` — wraps Bedrock Titan V2 for both ingestion and query-time embedding.
+- **Vector storage**: `PGVector` — manages its own tables (`langchain_pg_collection`, `langchain_pg_embedding`) in PostgreSQL with JSONB metadata columns. Each embedding row stores chunk text, a 1024-dimension vector, and metadata (`document_id`, `user_id`, `filename`).
+- **Retrieval**: `PGVector.as_retriever()` with metadata filtering — per-user document isolation via `user_id` filter in JSONB metadata.
+
+Trade-offs vs. a custom pipeline:
+- LangChain manages vector storage tables automatically — no custom `document_chunks` table or manual SQL for vector operations.
+- Per-user isolation is achieved via JSONB metadata filtering rather than SQL foreign keys.
+- Deleting a document requires explicit `vector_store.delete()` calls since there is no CASCADE from the `documents` table to LangChain's tables.
 
 ### 5.5 Bedrock Models
 
@@ -315,7 +325,7 @@ Response `200`:
 { "message": "Document deleted", "id": "d1a2b3c4-..." }
 ```
 
-Soft-deletes in DB, deletes associated chunks, removes from S3. Errors: `404`.
+Soft-deletes in DB, removes associated embeddings from the vector store, removes from S3. Errors: `404`.
 
 ### 6.5 RAG Jobs
 
@@ -469,19 +479,6 @@ Status values: `pending`, `ready`, `failed`.
 
 Indexes: `ix_documents_user_id`, `ix_documents_status`, `ix_documents_s3_key` (unique).
 
-### Table: `document_chunks`
+### Vector Storage (LangChain PGVector)
 
-Requires pgvector extension: `CREATE EXTENSION IF NOT EXISTS vector;`
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `id` | `UUID` | PK, default `gen_random_uuid()` |
-| `document_id` | `UUID` | FK → `documents.id`, NOT NULL |
-| `chunk_index` | `INTEGER` | NOT NULL |
-| `chunk_text` | `TEXT` | NOT NULL |
-| `embedding` | `VECTOR(1024)` | NOT NULL |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL, default `now()` |
-
-Indexes: `ix_document_chunks_document_id`, HNSW index on `embedding` column using cosine distance for fast similarity search.
-
-Cascade delete: when a document is deleted, all its chunks are deleted.
+Vector storage tables (`langchain_pg_collection`, `langchain_pg_embedding`) are created and managed automatically by LangChain's PGVector on first use. Each embedding row stores chunk text, a 1024-dimension vector, and JSONB metadata (`document_id`, `user_id`, `filename`) for per-user filtering.

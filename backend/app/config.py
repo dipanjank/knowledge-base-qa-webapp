@@ -9,8 +9,6 @@ class Settings(BaseSettings):
 
     aws_region: str
     s3_bucket_name: str
-    bedrock_model_id: str
-    bedrock_embedding_model_id: str
 
     admin_username: str
     admin_email: str
