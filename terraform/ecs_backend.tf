@@ -12,7 +12,7 @@ module "backend_service" {
 
   enable_autoscaling = false
 
-  task_exec_ssm_arns = [
+  task_exec_ssm_param_arns = [
     aws_ssm_parameter.database_url.arn,
     aws_ssm_parameter.jwt_secret.arn,
     aws_ssm_parameter.admin_password.arn,
