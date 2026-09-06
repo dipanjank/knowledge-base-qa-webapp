@@ -47,7 +47,7 @@ module "backend_service" {
         { name = "S3_BUCKET_NAME", value = module.data_bucket.s3_bucket_id },
         { name = "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", value = "30" },
         { name = "JWT_REFRESH_TOKEN_EXPIRE_DAYS", value = "7" },
-{ name = "ADMIN_USERNAME", value = var.admin_username },
+        { name = "ADMIN_USERNAME", value = var.admin_username },
         { name = "ADMIN_EMAIL", value = var.admin_email },
       ]
 
