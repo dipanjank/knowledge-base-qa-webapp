@@ -35,7 +35,7 @@ module "frontend_service" {
       essential = true
       image     = "${aws_ecr_repository.frontend.repository_url}:${local.frontend_image_version}"
 
-      port_mappings = [
+      portMappings = [
         {
           name          = "http"
           containerPort = 3000
@@ -44,9 +44,9 @@ module "frontend_service" {
         }
       ]
 
-      readonly_root_filesystem = false
+      readonlyRootFilesystem = false
 
-      health_check = {
+      healthCheck = {
         command     = ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
         interval    = 30
         timeout     = 5
@@ -54,7 +54,7 @@ module "frontend_service" {
         startPeriod = 10
       }
 
-      log_configuration = {
+      logConfiguration = {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = "/ecs/${var.project_name}-frontend"
