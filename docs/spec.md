@@ -46,7 +46,7 @@ A fullstack web application that allows users to upload TXT documents, chunk and
 
 - Users submit a natural language question.
 - The system embeds the question using Bedrock Titan Embeddings, then performs a cosine similarity search against stored chunks in PostgreSQL (pgvector).
-- The system constructs a prompt with the top-K retrieved chunks as context and sends it to a Bedrock LLM (Claude Sonnet).
+- The system constructs a prompt with the top-K retrieved chunks as context and sends it to a Bedrock LLM (Qwen3 Next 80B).
 - The response includes the answer text and source document citations with relevance scores.
 
 ## 3. Non-Functional Requirements
@@ -69,7 +69,7 @@ A fullstack web application that allows users to upload TXT documents, chunk and
 | Object Storage | AWS S3 |
 | Message Queue | AWS SQS |
 | Vector Search | pgvector extension on PostgreSQL |
-| LLM | Anthropic Claude Sonnet via Amazon Bedrock |
+| LLM | Qwen3 Next 80B via Amazon Bedrock |
 | Embeddings | Amazon Titan Embeddings V2 (via Bedrock) |
 | Infrastructure | Terraform |
 | Containers | Docker, AWS ECR |
@@ -108,7 +108,7 @@ Trade-offs vs. a custom pipeline:
 
 ### 5.5 Bedrock Models
 
-- **LLM**: `anthropic.claude-3-5-sonnet-20241022-v2:0` — strong reasoning, fast, cost-effective.
+- **LLM**: `qwen.qwen3-next-80b-a3b` — open-source, strong reasoning.
 - **Embeddings**: `amazon.titan-embed-text-v2:0` — 1024-dimension vectors, called via Bedrock InvokeModel for each chunk and each query.
 
 ### 5.6 SvelteKit SPA Mode
@@ -402,7 +402,7 @@ Response `200`:
       "relevance_score": 0.92
     }
   ],
-  "model_id": "anthropic.claude-3-5-sonnet-20241022-v2:0"
+  "model_id": "qwen.qwen3-next-80b-a3b"
 }
 ```
 

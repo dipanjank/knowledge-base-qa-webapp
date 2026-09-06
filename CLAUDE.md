@@ -23,7 +23,7 @@ Monorepo with three top-level directories:
 - **CI/CD**: GitHub Actions → AWS ECR
 - **Auth**: JWT (access token 30m + refresh token 7d httpOnly cookie)
 - **Embeddings**: Amazon Titan V2 via Bedrock
-- **LLM**: Claude Sonnet via Bedrock
+- **LLM**: Qwen3 Next 80B via Bedrock
 
 ## Development Commands
 
@@ -53,6 +53,6 @@ docker compose up --build               # Backend :8000, Frontend :3000, Postgre
 ## Architecture Notes
 
 - Database tables are created manually via SQL (no Alembic)
-- Custom RAG pipeline: text extraction → chunking (500 tokens, 50 overlap) → Titan embeddings → pgvector cosine search → Claude LLM
+- Custom RAG pipeline: text extraction → chunking (500 tokens, 50 overlap) → Titan embeddings → pgvector cosine search → Qwen3 Next LLM
 - Admin-only user creation (no self-registration), permanent generated passwords
 - Frontend proxies `/api` to backend in dev; ALB does path-based routing in production

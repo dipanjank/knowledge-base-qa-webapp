@@ -180,7 +180,7 @@ S3 bucket for Terraform remote state, created using [`terraform-aws-modules/s3-b
 | `project_name`               | Project name for resources   | `kbqa`                                |
 | `admin_username`             | Initial admin username       | `admin`                               |
 | `admin_email`                | Initial admin email          | `admin@kbqa.local`                    |
-| `bedrock_model_id`           | Bedrock LLM model ID        | `meta.llama4-maverick-17b-instruct-v1:0` |
+| `bedrock_model_id`           | Bedrock LLM model ID        | `qwen.qwen3-next-80b-a3b` |
 | `bedrock_embedding_model_id` | Bedrock embedding model ID   | `amazon.titan-embed-text-v2:0`        |
 
 ## Outputs

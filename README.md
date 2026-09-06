@@ -7,7 +7,7 @@ A fullstack web application for uploading documents (PDF, TXT, CSV), chunking an
 1. Admin creates user accounts (no self-registration)
 2. Users upload documents (up to 5 at once), which are stored in S3 and queued for async processing via SQS
 3. A separate RAG worker service picks up the job, chunks text (500 tokens, 50 overlap), embeds using Amazon Titan V2, and stores vectors in PostgreSQL with pgvector
-4. Users ask natural language questions — the system retrieves relevant chunks, constructs a prompt, and gets an answer from Claude Sonnet via Bedrock
+4. Users ask natural language questions — the system retrieves relevant chunks, constructs a prompt, and gets an answer from Qwen3 Next 80B via Bedrock
 5. Answers include source citations with document name, excerpt, and relevance score
 
 ## Tech Stack
@@ -18,7 +18,7 @@ A fullstack web application for uploading documents (PDF, TXT, CSV), chunking an
 | Frontend | SvelteKit 5, TypeScript, Vite 8 |
 | Database | PostgreSQL 18 with pgvector |
 | Object Storage | AWS S3 |
-| LLM | Claude Sonnet via Amazon Bedrock |
+| LLM | Qwen3 Next 80B via Amazon Bedrock |
 | Embeddings | Amazon Titan V2 via Bedrock |
 | Async Processing | AWS SQS + dedicated ECS worker |
 | RAG Pipeline | LangChain (text splitting, embeddings, pgvector) |
