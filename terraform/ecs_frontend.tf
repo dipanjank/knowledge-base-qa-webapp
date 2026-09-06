@@ -5,8 +5,12 @@ module "frontend_service" {
   name        = "${var.project_name}-frontend"
   cluster_arn = aws_ecs_cluster.main.arn
 
+  desired_count = 1
+
   cpu    = 256
   memory = 512
+
+  enable_autoscaling = false
 
   container_definitions = {
     frontend = {

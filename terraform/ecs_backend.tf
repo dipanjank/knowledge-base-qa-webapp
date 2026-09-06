@@ -5,8 +5,12 @@ module "backend_service" {
   name        = "${var.project_name}-backend"
   cluster_arn = aws_ecs_cluster.main.arn
 
+  desired_count = 1
+
   cpu    = 512
   memory = 1024
+
+  enable_autoscaling = false
 
   container_definitions = {
     backend = {
@@ -33,19 +37,20 @@ module "backend_service" {
       }
 
       environment = [
-        { name = "DATABASE_HOST", value = module.rds.db_instance_address },
-        { name = "DATABASE_PORT", value = tostring(module.rds.db_instance_port) },
-        { name = "DATABASE_NAME", value = var.project_name },
-        { name = "DATABASE_USER", value = "${var.project_name}_admin" },
-        { name = "AWS_DEFAULT_REGION", value = var.aws_region },
+        { name = "AWS_REGION", value = var.aws_region },
         { name = "S3_BUCKET_NAME", value = module.data_bucket.s3_bucket_id },
+        { name = "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", value = "30" },
+        { name = "JWT_REFRESH_TOKEN_EXPIRE_DAYS", value = "7" },
+        { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
+        { name = "BEDROCK_EMBEDDING_MODEL_ID", value = var.bedrock_embedding_model_id },
+        { name = "ADMIN_USERNAME", value = var.admin_username },
+        { name = "ADMIN_EMAIL", value = var.admin_email },
       ]
 
       secrets = [
-        {
-          name      = "DATABASE_PASSWORD"
-          valueFrom = aws_ssm_parameter.db_password.arn
-        }
+        { name = "DATABASE_URL", valueFrom = aws_ssm_parameter.database_url.arn },
+        { name = "JWT_SECRET", valueFrom = aws_ssm_parameter.jwt_secret.arn },
+        { name = "ADMIN_PASSWORD", valueFrom = aws_ssm_parameter.admin_password.arn },
       ]
 
       logConfiguration = {
