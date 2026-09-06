@@ -103,13 +103,17 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 
 - **Security Group** — `kbqa-alb-sg` allows inbound HTTP (80) and HTTPS (443) from anywhere
 - **HTTP Listener** — Forwards to the frontend target group by default
+- **Backend Listener Rule** — Routes `/api/*`, `/health`, `/docs`, `/openapi.json` to the backend target group (priority 100)
+- **Backend Target Group** — IP-based target group on port 8000, health-checked on `/health`
 - **Frontend Target Group** — IP-based target group on port 3000, health-checked on `/`
 
-### ECS (`ecs.tf`)
+### ECS Cluster (`ecs_cluster.tf`)
 
-**Cluster** — `kbqa-cluster` with Fargate capacity provider and Container Insights enabled.
+`kbqa-cluster` with Fargate capacity provider and Container Insights enabled.
 
-**Frontend Service** — `kbqa-frontend` Fargate service using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 5.0, deployed to the private subnets:
+### Frontend Service (`ecs_frontend.tf`)
+
+`kbqa-frontend` Fargate service using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
 
 | Setting    | Value                                  |
 |------------|----------------------------------------|
@@ -118,6 +122,20 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 | Container  | `kbqa-frontend` ECR image on port 3000 |
 | Logging    | CloudWatch (`/ecs/kbqa-frontend`, 7d)  |
 | Networking | Private subnets, ALB ingress on 3000   |
+
+### Backend Service (`ecs_backend.tf`)
+
+`kbqa-backend` Fargate service using [`terraform-aws-modules/ecs/aws//modules/service`](https://registry.terraform.io/modules/terraform-aws-modules/ecs/aws) ~> 7.0, deployed to the private subnets:
+
+| Setting     | Value                                                      |
+|-------------|------------------------------------------------------------|
+| CPU         | 512 (0.5 vCPU)                                            |
+| Memory      | 1024 MB                                                    |
+| Container   | `kbqa-backend` ECR image on port 8000                      |
+| Environment | `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, `AWS_DEFAULT_REGION`, `S3_BUCKET_NAME` |
+| Secrets     | `DATABASE_PASSWORD` from SSM                               |
+| Logging     | CloudWatch (`/ecs/kbqa-backend`, 7d)                       |
+| Networking  | Private subnets, ALB ingress on 8000                       |
 
 ### Data Bucket (`s3.tf`)
 
@@ -183,7 +201,9 @@ All parameters are prefixed with `/<project_name>/` (default: `/kbqa/`).
 terraform/
 ├── alb.tf              # Application Load Balancer and security group
 ├── backend.tf          # S3 remote state configuration
-├── ecs.tf              # ECS Fargate cluster and frontend service
+├── ecs_backend.tf      # ECS Fargate backend service
+├── ecs_cluster.tf      # ECS Fargate cluster
+├── ecs_frontend.tf     # ECS Fargate frontend service
 ├── ecr.tf              # ECR repositories and lifecycle policies
 ├── main.tf             # Local values (tags)
 ├── oidc_github.tf      # GitHub OIDC provider and deployment role
