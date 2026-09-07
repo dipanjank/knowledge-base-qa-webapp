@@ -24,6 +24,11 @@ module "backend_service" {
       actions   = ["sqs:SendMessage"]
       resources = [aws_sqs_queue.rag.arn]
     },
+    {
+      effect    = "Allow"
+      actions   = ["s3:PutObject"]
+      resources = ["${module.data_bucket.s3_bucket_arn}/*"]
+    },
   ]
 
   container_definitions = {
