@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     aws_region: str
     s3_bucket_name: str
+    sqs_queue_url: str
 
     admin_username: str
     admin_email: str

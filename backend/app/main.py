@@ -8,7 +8,7 @@ from app.config import settings
 from app.database import async_session
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.routers import admin, auth
+from app.routers import admin, auth, documents, rag_jobs
 from app.utils.auth import hash_password
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,8 @@ app = FastAPI(title="Knowledge Base QA", version="0.1.0", lifespan=lifespan)
 
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(documents.router)
+app.include_router(rag_jobs.router)
 
 
 @app.get("/api/health")
