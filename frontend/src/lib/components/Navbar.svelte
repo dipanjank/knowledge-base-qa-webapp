@@ -25,6 +25,7 @@
 	<a href="/qa" class="brand">KB QA</a>
 	<div class="links">
 		<a href="/documents" class:active={isActive('/documents')}>Documents</a>
+		<a href="/rag-jobs" class:active={isActive('/rag-jobs')}>Jobs</a>
 		<a href="/qa" class:active={isActive('/qa')}>QA</a>
 		{#if role === 'admin'}
 			<a href="/admin/users" class:active={isActive('/admin')}>Admin</a>

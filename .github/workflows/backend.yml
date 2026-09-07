@@ -22,6 +22,7 @@ jobs:
           "JWT_REFRESH_TOKEN_EXPIRE_DAYS": "7",
           "AWS_REGION": "us-east-1",
           "S3_BUCKET_NAME": "test",
+          "SQS_QUEUE_URL": "http://localhost:4566/queue/test",
           "ADMIN_USERNAME": "admin",
           "ADMIN_EMAIL": "admin@test.com",
           "ADMIN_PASSWORD": "admin"

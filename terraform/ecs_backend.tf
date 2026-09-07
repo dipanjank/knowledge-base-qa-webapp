@@ -18,6 +18,14 @@ module "backend_service" {
     aws_ssm_parameter.admin_password.arn,
   ]
 
+  tasks_iam_role_statements = [
+    {
+      effect    = "Allow"
+      actions   = ["sqs:SendMessage"]
+      resources = [aws_sqs_queue.rag.arn]
+    },
+  ]
+
   container_definitions = {
     backend = {
       essential = true
@@ -45,6 +53,7 @@ module "backend_service" {
       environment = [
         { name = "AWS_REGION", value = var.aws_region },
         { name = "S3_BUCKET_NAME", value = module.data_bucket.s3_bucket_id },
+        { name = "SQS_QUEUE_URL", value = aws_sqs_queue.rag.url },
         { name = "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", value = "30" },
         { name = "JWT_REFRESH_TOKEN_EXPIRE_DAYS", value = "7" },
         { name = "ADMIN_USERNAME", value = var.admin_username },
