@@ -137,8 +137,9 @@ Internet-facing Application Load Balancer (`kbqa-alb`) in the public subnets. Ro
 | CPU         | 512 (0.5 vCPU)                                            |
 | Memory      | 1024 MB                                                    |
 | Container   | `kbqa-backend` ECR image on port 8000                      |
-| Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`, `ADMIN_USERNAME`, `ADMIN_EMAIL` |
+| Environment | `AWS_REGION`, `S3_BUCKET_NAME`, `SQS_QUEUE_URL`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`, `JWT_REFRESH_TOKEN_EXPIRE_DAYS`, `ADMIN_USERNAME`, `ADMIN_EMAIL` |
 | Secrets     | `DATABASE_URL`, `JWT_SECRET`, `ADMIN_PASSWORD` from SSM    |
+| IAM         | SQS (SendMessage)                                          |
 | Logging     | CloudWatch (`/ecs/kbqa-backend`, 7d)                       |
 | Networking  | Private subnets, ALB ingress on 8000                       |
 

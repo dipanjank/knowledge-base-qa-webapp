@@ -17,14 +17,15 @@ src/
 │   ├── stores/
 │   │   └── auth.ts             Auth state store (token, role, isAuthenticated)
 │   └── components/
-│       └── Navbar.svelte       Navigation bar with role-based links
+│       └── Navbar.svelte       Navigation bar with role-based links (Documents, Jobs, QA, Admin)
 ├── routes/
 │   ├── +layout.svelte          Auth guard + conditional navbar
 │   ├── +layout.ts              Disables SSR (SPA mode)
 │   ├── +page.svelte            Root redirect → /qa or /login
 │   ├── login/+page.svelte      Login form
 │   ├── qa/+page.svelte         Question answering (placeholder)
-│   ├── documents/+page.svelte  Document list (placeholder)
+│   ├── documents/+page.svelte  Multi-file upload, job status panel, document list
+│   ├── rag-jobs/+page.svelte   RAG job history
 │   └── admin/users/+page.svelte  Admin user management
 ├── app.css                     Global styles and CSS variables
 └── app.html                    HTML template
@@ -43,7 +44,7 @@ src/
 - `logout()` — clears all auth state
 - Stores access token in memory (not localStorage)
 
-**`lib/components/Navbar.svelte`** — Links to Documents, QA, and Admin (visible to admins only). Logout button calls `/api/auth/logout` and redirects to `/login`.
+**`lib/components/Navbar.svelte`** — Links to Documents, Jobs, QA, and Admin (visible to admins only). Logout button calls `/api/auth/logout` and redirects to `/login`.
 
 ### Pages
 
@@ -51,7 +52,8 @@ src/
 |-------|------|-------------|
 | `/login` | Public | Username/password form, redirects to `/qa` on success |
 | `/qa` | Required | Question answering interface (placeholder) |
-| `/documents` | Required | Document list (placeholder) |
+| `/documents` | Required | Multi-file upload (up to 5 .txt files), active job status panel with progress bar (polls every 3s), document list with soft delete |
+| `/rag-jobs` | Required | RAG job history — status, per-document breakdown, progress, duration |
 | `/admin/users` | Admin | Create users (shows generated password once), list users, delete non-admin users |
 
 ### Auth Flow

@@ -22,13 +22,15 @@ routers/          HTTP layer (request/response, cookies, status codes)
 - **`main.py`** — App entrypoint. Registers routers, seeds admin user on startup via lifespan hook.
 - **`config.py`** — All settings loaded from environment variables (no defaults). Uses `pydantic-settings`.
 - **`database.py`** — Async SQLAlchemy engine and session factory (`asyncpg` driver).
-- **`dependencies.py`** — FastAPI `Depends` wiring: `get_user_repo` → `get_auth_service` / `get_admin_service`, plus `get_current_user` and `require_admin` guards.
+- **`dependencies.py`** — FastAPI `Depends` wiring: `get_user_repo` → `get_auth_service` / `get_admin_service`, `get_document_repo` / `get_rag_job_repo` → `get_document_service` / `get_rag_job_service`, `get_s3_service`, `get_sqs_service`, plus `get_current_user` and `require_admin` guards.
 
 ### Models
 
 | File | Description |
 |------|-------------|
 | `models/user.py` | `User` table — UUID PK, username, email, password_hash, role (admin/user), timestamps |
+| `models/document.py` | `Document` table — UUID PK, user_id, filename, file_type, file_size_bytes, s3_key (unique), status, text_preview, timestamps, soft delete |
+| `models/rag_job.py` | `RagJob` table — UUID PK, user_id, status, total_documents, documents_processed, documents_failed, timestamps. `RagJobDocument` junction table linking jobs to documents with per-document status and error_message |
 
 ### Repositories
 
@@ -36,6 +38,8 @@ routers/          HTTP layer (request/response, cookies, status codes)
 |------|-------------|
 | `repositories/base.py` | `GenericRepository[T]` — reusable async CRUD: `get_by_id`, `get_one(**filters)`, `get_all`, `count`, `create`, `delete` |
 | `repositories/user_repository.py` | Extends `GenericRepository[User]`, adds `get_by_username_or_email` (OR query) |
+| `repositories/document_repository.py` | Extends `GenericRepository[Document]` — `get_by_user`, `count_by_user`, `get_by_id_and_user`, `soft_delete` (sets deleted_at + cleans up embeddings from langchain_pg_embedding) |
+| `repositories/rag_job_repository.py` | Extends `GenericRepository[RagJob]` — `get_active_job`, `get_user_jobs`, `count_user_jobs`, `get_job_documents`, `create_job_document` |
 
 ### Services
 
@@ -43,6 +47,10 @@ routers/          HTTP layer (request/response, cookies, status codes)
 |------|-------------|
 | `services/auth_service.py` | `login()` — validates credentials, returns access + refresh tokens. `refresh()` — rotates tokens. |
 | `services/admin_service.py` | `create_user()` — generates random password, checks uniqueness. `list_users()`, `delete_user()` — with admin/not-found guards. |
+| `services/document_service.py` | `upload_documents()` — validates files (max 5, .txt only), uploads to S3, creates Document + RagJob rows, sends SQS message. `list_documents()`, `delete_document()` (soft delete). |
+| `services/rag_job_service.py` | `get_active_job()` — returns current pending/processing job with per-document statuses. `list_jobs()` — paginated job history. |
+| `services/s3_service.py` | boto3 S3 wrapper — `upload_file(key, data, content_type)` via `put_object` |
+| `services/sqs_service.py` | boto3 SQS wrapper — `send_message(body)` with JSON serialization |
 
 ### Routers
 
@@ -55,6 +63,11 @@ routers/          HTTP layer (request/response, cookies, status codes)
 | `/api/admin/users` | POST | Admin | Create user, returns generated password |
 | `/api/admin/users` | GET | Admin | List all users |
 | `/api/admin/users/{id}` | DELETE | Admin | Delete non-admin user |
+| `/api/documents/` | POST | Bearer | Upload up to 5 files, creates RAG job, sends SQS message (201) |
+| `/api/documents/` | GET | Bearer | List user's documents (excludes soft-deleted) |
+| `/api/documents/{id}` | DELETE | Bearer | Soft-delete document + clean up embeddings |
+| `/api/rag-jobs/active` | GET | Bearer | Current pending/processing job with per-document statuses |
+| `/api/rag-jobs/` | GET | Bearer | Job history, most recent first |
 
 ### Schemas
 
@@ -62,6 +75,8 @@ routers/          HTTP layer (request/response, cookies, status codes)
 |------|---------|
 | `schemas/auth.py` | `LoginRequest`, `TokenResponse` |
 | `schemas/user.py` | `CreateUserRequest`, `CreateUserResponse`, `UserResponse`, `UserListResponse`, `MessageResponse` |
+| `schemas/document.py` | `DocumentInfo`, `DocumentUploadResponse`, `DocumentResponse`, `DocumentListResponse` |
+| `schemas/rag_job.py` | `RagJobDocumentStatus`, `RagJobResponse`, `RagJobListResponse` |
 
 ### Utils
 
@@ -81,6 +96,7 @@ All are required — no defaults.
 | `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token TTL in days |
 | `AWS_REGION` | AWS region |
 | `S3_BUCKET_NAME` | S3 bucket for document storage |
+| `SQS_QUEUE_URL` | SQS queue URL for RAG job processing |
 | `ADMIN_USERNAME` | Seed admin username |
 | `ADMIN_EMAIL` | Seed admin email |
 | `ADMIN_PASSWORD` | Seed admin password |
@@ -103,6 +119,7 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30 \
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=7 \
 AWS_REGION=us-east-1 \
 S3_BUCKET_NAME=test \
+SQS_QUEUE_URL=http://localhost:4566/queue/test \
 ADMIN_USERNAME=admin \
 ADMIN_EMAIL=admin@test.com \
 ADMIN_PASSWORD=admin \
@@ -117,6 +134,12 @@ Tests use async SQLite in-memory for repository tests and mocked repositories fo
 | `test_auth_service.py` | 7 | Mocked `UserRepository` |
 | `test_admin_service.py` | 7 | Mocked `UserRepository` |
 | `test_health.py` | 1 | `TestClient` |
+| `test_document_repository.py` | 9 | Real async SQLite DB |
+| `test_rag_job_repository.py` | 8 | Real async SQLite DB |
+| `test_document_service.py` | 8 | Mocked repos + services |
+| `test_rag_job_service.py` | 5 | Mocked `RagJobRepository` |
+| `test_s3_service.py` | 3 | Mocked boto3 client |
+| `test_sqs_service.py` | 2 | Mocked boto3 client |
 
 ## Linting
 

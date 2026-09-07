@@ -42,13 +42,13 @@
 
 - [x] **4.1** Create `rag_jobs` table and SQLModel model with status tracking (pending/processing/completed/part_completed/failed)
 - [x] **4.2** Add `rag_job_id` FK to documents table linking documents to their RAG job
-- [ ] **4.3** Create RAG job schema, repository, service, and router (`GET /api/rag-jobs/active`, `GET /api/rag-jobs/`)
-- [ ] **4.4** Create SQS service for sending messages from the backend
-- [ ] **4.5** Rewrite document upload to accept up to 5 files, create a RAG job, upload all to S3, and send an SQS message
-- [ ] **4.6** Enforce one active RAG job per user (unique partial index on rag_jobs)
-- [ ] **4.7** Create `rag-service/` worker: SQS consumer that polls for jobs, processes each document (extract text, chunk, embed via Bedrock Titan V2, store chunks), and updates job/document status
-- [ ] **4.8** Frontend: multi-file upload (up to 5 TXT files), job status panel with polling, disable upload while job is active
-- [ ] **4.9** Frontend: RAG job history page (`/rag-jobs`)
+- [x] **4.3** Create RAG job schema, repository, service, and router (`GET /api/rag-jobs/active`, `GET /api/rag-jobs/`)
+- [x] **4.4** Create SQS service for sending messages from the backend
+- [x] **4.5** Rewrite document upload to accept up to 5 files, create a RAG job, upload all to S3, and send an SQS message
+- [x] **4.6** Enforce one active RAG job per user (unique partial index on rag_jobs)
+- [x] **4.7** Create `rag-service/` worker: SQS consumer that polls for jobs, processes each document (extract text, chunk, embed via Bedrock Titan V2, store chunks), and updates job/document status
+- [x] **4.8** Frontend: multi-file upload (up to 5 TXT files), job status panel with polling, disable upload while job is active
+- [x] **4.9** Frontend: RAG job history page (`/rag-jobs`)
 
 ## Epic 5: RAG Question Answering
 
@@ -73,9 +73,9 @@
 - [x] **6.5** Provision IAM roles with least-privilege access for ECS tasks
 - [x] **6.6** Wire all modules together and validate
 - [x] **6.7** Provision SQS queue (kbqa-rag) with DLQ for async RAG processing
-- [ ] **6.8** Provision ECR repository and ECS service for kbqa-rag worker (no ALB, polls SQS)
-- [ ] **6.9** Add SQS SendMessage IAM policy to backend task role and SQS_QUEUE_URL env var
-- [ ] **6.10** Add SQS Receive/Delete, S3 GetObject, Bedrock InvokeModel IAM policies to RAG worker task role
+- [x] **6.8** Provision ECR repository and ECS service for kbqa-rag worker (no ALB, polls SQS)
+- [x] **6.9** Add SQS SendMessage IAM policy to backend task role and SQS_QUEUE_URL env var
+- [x] **6.10** Add SQS Receive/Delete, S3 GetObject, Bedrock InvokeModel IAM policies to RAG worker task role
 
 ## Epic 7: CI/CD
 
