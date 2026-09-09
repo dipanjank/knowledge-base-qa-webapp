@@ -1,3 +1,4 @@
+/*
 module "frontend_service" {
   source  = "terraform-aws-modules/ecs/aws//modules/service"
   version = "~> 7.0"
@@ -82,3 +83,4 @@ resource "aws_cloudwatch_log_group" "frontend" {
 
   tags = local.tags
 }
+*/
