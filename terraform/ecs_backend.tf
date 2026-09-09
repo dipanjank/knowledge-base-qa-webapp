@@ -29,6 +29,14 @@ module "backend_service" {
       actions   = ["s3:PutObject"]
       resources = ["${module.data_bucket.s3_bucket_arn}/*"]
     },
+    {
+      effect  = "Allow"
+      actions = ["bedrock:InvokeModel"]
+      resources = [
+        "arn:aws:bedrock:${var.aws_region}::foundation-model/${var.bedrock_model_id}",
+        "arn:aws:bedrock:${var.aws_region}::foundation-model/${var.bedrock_embedding_model_id}",
+      ]
+    },
   ]
 
   container_definitions = {
@@ -63,6 +71,8 @@ module "backend_service" {
         { name = "JWT_REFRESH_TOKEN_EXPIRE_DAYS", value = "7" },
         { name = "ADMIN_USERNAME", value = var.admin_username },
         { name = "ADMIN_EMAIL", value = var.admin_email },
+        { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
+        { name = "BEDROCK_EMBEDDING_MODEL_ID", value = var.bedrock_embedding_model_id },
       ]
 
       secrets = [
