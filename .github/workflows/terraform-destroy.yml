@@ -1,0 +1,70 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm'
+        required: true
+
+jobs:
+  destroy:
+    name: Terraform Destroy
+    if: github.event.inputs.confirm == 'destroy'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::381665779871:role/kbqa-deployment-role
+          aws-region: eu-west-1
+
+      - uses: hashicorp/setup-terraform@v4
+
+      - name: Init
+        run: terraform init
+
+      - name: Build target list
+        id: targets
+        run: |
+          PROTECTED=(
+            "module.state_bucket"
+            "aws_iam_openid_connect_provider.github"
+            "aws_iam_role.deployment"
+            "aws_iam_role_policy_attachment.deployment_admin"
+          )
+
+          ALL_RESOURCES=$(terraform state list)
+
+          TARGETS=""
+          while IFS= read -r resource; do
+            [ -z "$resource" ] && continue
+            skip=false
+            for protected in "${PROTECTED[@]}"; do
+              if [[ "$resource" == "$protected" || "$resource" == "$protected."* ]]; then
+                skip=true
+                break
+              fi
+            done
+            if [ "$skip" = false ]; then
+              TARGETS="$TARGETS -target='$resource'"
+            fi
+          done <<< "$ALL_RESOURCES"
+
+          echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+
+      - name: Plan destroy
+        run: |
+          eval terraform plan -destroy -no-color ${{ steps.targets.outputs.targets }} 2>&1 | tee plan_output.txt
+
+      - name: Destroy
+        run: |
+          eval terraform destroy -auto-approve ${{ steps.targets.outputs.targets }}
