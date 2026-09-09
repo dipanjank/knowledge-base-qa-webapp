@@ -26,10 +26,10 @@
                │ (users, docs,│          │                     │
                │  chunks,     │          │                     │
                │  vectors,    │   ┌──────▼─────────────────────▼────┐
-               │  rag_jobs)   │   │ ECS Fargate                     │
-               └──────┬───────┘   │ RAG Worker (kbqa-rag)           │
-                      │           │ - Polls SQS                     │
-                      │           │ - Downloads from S3              │
+               │  rag_jobs,   │   │ ECS Fargate                     │
+               │  convos,     │   │ RAG Worker (kbqa-rag)           │
+               │  messages)   │   │ - Polls SQS                     │
+               └──────┬───────┘   │ - Downloads from S3              │
                       │           │ - Embeds via Bedrock Titan       │
                       │           │ - Writes chunks + vectors to DB  │
                       │           └─────────────────────┬───────────┘
@@ -102,34 +102,47 @@ SQS            RAG Worker                    S3         Bedrock Embed    RDS
   │◀── Delete ────│                          │              │             │
 ```
 
-### 2.2 RAG Query Flow
+### 2.2 RAG Query Flow (Multi-Turn)
 
 ```
-Browser                    ALB              Backend          Bedrock Embed   Bedrock LLM     RDS (pgvector)
+Browser                    ALB              Backend          Bedrock Embed   Bedrock LLM     RDS (pgvector + conversations)
   │                         │                  │                  │               │             │
   │── POST /api/qa/ask ────▶│                  │                  │               │             │
-  │   { question }          │── forward ──────▶│                  │               │             │
+  │   { question,           │── forward ──────▶│                  │               │             │
+  │     conversation_id? }  │                  │                  │               │             │
+  │                         │                  │── load chat ─────┼───────────────┼────────────▶│
+  │                         │                  │   history        │               │             │
+  │                         │                  │◀── messages[] ───┼───────────────┼─────────────│
   │                         │                  │                  │               │             │
   │                         │                  │── embed question▶│               │             │
   │                         │                  │   (Titan V2)     │               │             │
   │                         │                  │◀── query vector ─│               │             │
   │                         │                  │                  │               │             │
   │                         │                  │── cosine search ─┼───────────────┼────────────▶│
-  │                         │                  │   (top K chunks) │               │             │
+  │                         │                  │   (top 5 chunks, │               │             │
+  │                         │                  │    user_id filter)│               │             │
   │                         │                  │◀── chunks[] + ───┼───────────────┼─────────────│
   │                         │                  │   doc metadata   │               │             │
   │                         │                  │                  │               │             │
-  │                         │                  │── build prompt ──┤               │             │
-  │                         │                  │   (context +     │               │             │
+  │                         │                  │── stuff chain ───┤               │             │
+  │                         │                  │   (chat_history + │               │             │
+  │                         │                  │    chunks +      │               │             │
   │                         │                  │    question)     │               │             │
   │                         │                  │                  │               │             │
   │                         │                  │── InvokeModel() ─┼──────────────▶│             │
   │                         │                  │   (Qwen3)        │               │             │
-  │                         │                  │◀── answer ───────┼───────────────│             │
+  │                         │                  │◀── answer + ─────┼───────────────│             │
+  │                         │                  │   sources        │               │             │
+  │                         │                  │                  │               │             │
+  │                         │                  │── save messages ─┼───────────────┼────────────▶│
+  │                         │                  │   (human + ai)   │               │             │
   │                         │                  │                  │               │             │
   │◀─── 200 { answer, ─────│◀── response ─────│                  │               │             │
-  │     sources[] }         │                  │                  │               │             │
+  │     sources[],          │                  │                  │               │             │
+  │     conversation_id }   │                  │                  │               │             │
 ```
+
+The stuff chain concatenates all retrieved chunks into a single prompt along with conversation history. `RunnableWithMessageHistory` handles loading/saving messages from PostgreSQL automatically via a custom `PostgresChatMessageHistory` keyed by `conversation_id`.
 
 ### 2.3 Auth Flow
 
@@ -180,146 +193,16 @@ Admin Browser              ALB              Backend                             
 
 ```
 knowledge-base-qa-webapp/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml                      # Lint + test on PR
-│       ├── deploy.yml                  # Build, push ECR, deploy ECS
-│       └── rag-service.yml             # RAG worker lint, test, build, push ECR
-├── backend/
-│   ├── Dockerfile
-│   ├── pyproject.toml
-│   ├── requirements.txt
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py                     # FastAPI app, router wiring, CORS
-│   │   ├── config.py                   # Pydantic Settings (env vars)
-│   │   ├── database.py                 # SQLAlchemy engine + session
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── user.py
-│   │   │   ├── document.py
-│   │   │   └── rag_job.py
-│   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py
-│   │   │   ├── document.py
-│   │   │   ├── rag_job.py
-│   │   │   └── qa.py
-│   │   ├── routers/
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py
-│   │   │   ├── admin.py
-│   │   │   ├── documents.py
-│   │   │   ├── rag_jobs.py
-│   │   │   ├── qa.py
-│   │   │   └── health.py
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   ├── auth_service.py
-│   │   │   ├── document_service.py
-│   │   │   ├── s3_service.py
-│   │   │   ├── sqs_service.py          # SQS SendMessage
-│   │   │   ├── rag_job_service.py
-│   │   │   └── rag_service.py          # Vector search + LLM answer generation
-│   │   ├── repositories/
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py
-│   │   │   ├── user_repository.py
-│   │   │   ├── document_repository.py
-│   │   │   ├── document_chunk_repository.py
-│   │   │   └── rag_job_repository.py
-│   │   ├── dependencies.py
-│   │   └── utils/
-│   │       ├── __init__.py
-│   │       └── security.py             # JWT encode/decode, password hashing
-│   └── tests/
-│       ├── conftest.py
-│       ├── test_auth.py
-│       ├── test_documents.py
-│       └── test_qa.py
-├── rag-service/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── VERSION
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── config.py                   # Worker-specific Settings
-│   │   ├── database.py                 # Async SQLAlchemy engine + session
-│   │   ├── worker.py                   # SQS consumer loop
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── document.py             # Document + DocumentChunk (shared schema)
-│   │   │   └── rag_job.py              # RagJob (shared schema)
-│   │   └── services/
-│   │       ├── __init__.py
-│   │       ├── s3_service.py           # S3 download
-│   │       ├── embedding_service.py    # Bedrock Titan V2 embeddings
-│   │       └── text_processing_service.py  # Text extraction + chunking
-│   └── tests/
-│       └── conftest.py
-├── frontend/
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── svelte.config.js
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   ├── src/
-│   │   ├── app.html
-│   │   ├── app.css
-│   │   ├── lib/
-│   │   │   ├── api.ts                  # Fetch wrapper with auth + refresh
-│   │   │   ├── stores/
-│   │   │   │   ├── auth.ts
-│   │   │   │   └── documents.ts
-│   │   │   └── components/
-│   │   │       ├── Navbar.svelte
-│   │   │       ├── FileUpload.svelte
-│   │   │       ├── DocumentList.svelte
-│   │   │       ├── DocumentCard.svelte
-│   │   │       ├── ChatWindow.svelte
-│   │   │       ├── MessageBubble.svelte
-│   │   │       ├── UserManagement.svelte
-│   │   │       └── ProtectedRoute.svelte
-│   │   └── routes/
-│   │       ├── +layout.svelte
-│   │       ├── +page.svelte            # Landing / redirect
-│   │       ├── login/
-│   │       │   └── +page.svelte
-│   │       ├── admin/
-│   │       │   └── users/
-│   │       │       └── +page.svelte    # Admin user management
-│   │       ├── documents/
-│   │       │   ├── +page.svelte        # List + upload + active job status
-│   │       │   └── [id]/
-│   │       │       └── +page.svelte    # Document detail
-│   │       ├── rag-jobs/
-│   │       │   └── +page.svelte        # RAG job history
-│   │       └── qa/
-│   │           └── +page.svelte        # Chat interface
-│   └── static/
-│       └── favicon.png
-├── terraform/
-│   ├── main.tf
-│   ├── variables.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   ├── versions.tf
-│   └── modules/
-│       ├── networking/
-│       ├── ecs/
-│       ├── rds/
-│       ├── s3/
-│       ├── ecr/
-│       ├── alb/
-│       └── iam/
-├── docs/
-│   ├── spec.md
-│   ├── architecture.md
-│   └── tasks.md
+├── .github/workflows/   # CI/CD pipelines (lint, test, build, deploy)
+├── backend/             # Python FastAPI REST API (app/, tests/)
+├── rag-service/         # Async RAG worker — SQS consumer, chunking, embedding (app/, tests/)
+├── frontend/            # SvelteKit SPA (src/routes/, src/lib/)
+├── terraform/           # AWS infrastructure (ECS, RDS, S3, ALB, SQS, IAM)
+├── sql/                 # Database schema (kbqa.sql)
+├── docs/                # spec.md, architecture.md, tasks.md
 ├── docker-compose.yml
 ├── CLAUDE.md
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ## 4. CI/CD Pipeline

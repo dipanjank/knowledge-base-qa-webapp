@@ -16,9 +16,9 @@ Monorepo with three top-level directories:
 
 ## Tech Stack
 
-- **Backend**: Python 3.14, FastAPI, SQLAlchemy, Pydantic
+- **Backend**: Python 3.14, FastAPI, SQLAlchemy, Pydantic, LangChain (LCEL, PGVector, BedrockEmbeddings)
 - **Frontend**: SvelteKit 5, TypeScript, Vite 8
-- **Database**: PostgreSQL 18 with pgvector
+- **Database**: PostgreSQL 17 with pgvector
 - **Infrastructure**: Terraform (AWS ECS Fargate, ALB, S3, ECR, RDS)
 - **CI/CD**: GitHub Actions → AWS ECR
 - **Auth**: JWT (access token 30m + refresh token 7d httpOnly cookie)

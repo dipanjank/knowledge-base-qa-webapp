@@ -16,7 +16,7 @@ A fullstack web application for uploading documents (PDF, TXT, CSV), chunking an
 |-------|------------|
 | Backend | Python 3.14, FastAPI, SQLModel, Pydantic |
 | Frontend | SvelteKit 5, TypeScript, Vite 8 |
-| Database | PostgreSQL 18 with pgvector |
+| Database | PostgreSQL 17 with pgvector |
 | Object Storage | AWS S3 |
 | LLM | Qwen3 Next 80B via Amazon Bedrock |
 | Embeddings | Amazon Titan V2 via Bedrock |

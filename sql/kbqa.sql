@@ -63,5 +63,29 @@ CREATE TABLE IF NOT EXISTS rag_job_documents (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_rag_job_documents_job_doc
     ON rag_job_documents (rag_job_id, document_id);
 
+CREATE TABLE IF NOT EXISTS conversations (
+    id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID            NOT NULL REFERENCES users (id),
+    title           VARCHAR(200),
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_conversations_user_id_updated_at
+    ON conversations (user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id                UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id   UUID            NOT NULL REFERENCES conversations (id) ON DELETE CASCADE,
+    role              VARCHAR(10)     NOT NULL
+                                      CHECK (role IN ('human', 'ai')),
+    content           TEXT            NOT NULL,
+    sources           JSONB,
+    created_at        TIMESTAMPTZ     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_messages_conversation_id_created_at
+    ON messages (conversation_id, created_at);
+
 -- Vector storage (langchain_pg_collection, langchain_pg_embedding) is managed
 -- automatically by LangChain's PGVector on first use.

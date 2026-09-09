@@ -47,7 +47,9 @@ A fullstack web application that allows users to upload TXT documents, chunk and
 - Users submit a natural language question.
 - The system embeds the question using Bedrock Titan Embeddings, then performs a cosine similarity search against stored chunks in PostgreSQL (pgvector).
 - The system constructs a prompt with the top-K retrieved chunks as context and sends it to a Bedrock LLM (Qwen3 Next 80B).
-- The response includes the answer text and source document citations with relevance scores.
+- The response includes the answer text with sources.
+- The system remembers conversational context.
+- The users can see their last 10 conversation history and can resume any of those conversations at a later session.
 
 ## 3. Non-Functional Requirements
 
@@ -62,10 +64,10 @@ A fullstack web application that allows users to upload TXT documents, chunk and
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Python 3.14, FastAPI, SQLAlchemy, Pydantic |
+| Backend | Python 3.14, FastAPI, SQLAlchemy, Pydantic, LangChain (LCEL, PGVector, BedrockEmbeddings) |
 | RAG Worker | Python 3.14, LangChain, SQS consumer (separate ECS service) |
 | Frontend | SvelteKit (SPA mode), TypeScript, adapter-node |
-| Database | PostgreSQL 18 (AWS RDS) |
+| Database | PostgreSQL 17 (AWS RDS) |
 | Object Storage | AWS S3 |
 | Message Queue | AWS SQS |
 | Vector Search | pgvector extension on PostgreSQL |
@@ -111,18 +113,26 @@ Trade-offs vs. a custom pipeline:
 - **LLM**: `qwen.qwen3-next-80b-a3b` — open-source, strong reasoning.
 - **Embeddings**: `amazon.titan-embed-text-v2:0` — 1024-dimension vectors, called via Bedrock InvokeModel for each chunk and each query.
 
-### 5.6 SvelteKit SPA Mode
+### 5.6 Multi-Turn QA with LCEL Stuff Chain
+
+The QA pipeline uses an LCEL chain (`PromptTemplate | ChatBedrockConverse`) that concatenates all retrieved chunks into a single prompt alongside the user's question and conversation history. This "stuff" approach is appropriate because the retriever returns a small number of chunks (top 5) that fit within the LLM's context window. The prompt instructs the LLM to cite sources, which are parsed from the response.
+
+Conversation history is managed by a custom `PostgresChatMessageHistory` class (extends LangChain's `BaseChatMessageHistory`) backed by the `conversations` and `messages` tables, using `conversation_id` as the session key. The QA service loads prior messages before each LLM call and saves the new human + AI messages afterward. This keeps conversation data in the same PostgreSQL database as all other application data.
+
+The chain and retriever run synchronously (LangChain's `PGVector` is sync). The backend wraps invocations in `asyncio.to_thread()` to avoid blocking the FastAPI async event loop. LangChain objects (`PGVector`, `ChatBedrockConverse`, `BedrockEmbeddings`) are lazily initialized on first request to avoid connecting to external services at import time.
+
+### 5.7 SvelteKit SPA Mode
 
 SvelteKit runs in SPA mode with all data fetching via `fetch()` to the FastAPI backend. Frontend and backend are separate ECS services behind the same ALB, routed by path prefix (`/api/*` → backend, `/*` → frontend).
 
-### 5.7 JWT Auth with bcrypt
+### 5.8 JWT Auth with bcrypt
 
 - Passwords hashed with bcrypt (cost factor 12).
 - Access token: 30-minute expiry, stored in frontend memory.
 - Refresh token: 7-day expiry, httpOnly secure cookie, rotated on each use.
 - JWT secret stored in AWS Secrets Manager, injected as ECS task environment variable.
 
-### 5.8 Async RAG Pipeline via SQS
+### 5.9 Async RAG Pipeline via SQS
 
 Document processing (text extraction, chunking, embedding) is decoupled from the upload request via SQS. This avoids ALB timeout issues (60s default) when processing large or multiple documents. A dedicated `kbqa-rag` ECS service polls SQS and processes documents independently. This also allows the worker to scale independently from the backend.
 
@@ -386,9 +396,11 @@ Request:
 ```json
 {
   "question": "What were Q3 2026 revenue figures?",
-  "max_results": 5
+  "conversation_id": "c1d2e3f4-..."
 }
 ```
+
+`conversation_id` is optional. Omit it to start a new conversation; include it to continue an existing one.
 
 Response `200`:
 ```json
@@ -402,11 +414,71 @@ Response `200`:
       "relevance_score": 0.92
     }
   ],
+  "conversation_id": "c1d2e3f4-...",
   "model_id": "qwen.qwen3-next-80b-a3b"
 }
 ```
 
-Errors: `422` (question must be 1-1000 characters).
+Errors: `422` (question must be 1-1000 characters), `404` (conversation not found or not owned by user).
+
+---
+
+**GET `/api/qa/conversations`** — Bearer auth
+
+Returns the user's last 10 conversations, ordered by most recently updated.
+
+Response `200`:
+```json
+{
+  "items": [
+    {
+      "id": "c1d2e3f4-...",
+      "title": "What were Q3 2026 revenue figures?",
+      "created_at": "2026-09-08T14:00:00Z",
+      "updated_at": "2026-09-08T14:05:00Z"
+    }
+  ],
+  "total": 8
+}
+```
+
+---
+
+**GET `/api/qa/conversations/{id}`** — Bearer auth
+
+Returns all messages for a conversation, ordered chronologically.
+
+Response `200`:
+```json
+{
+  "id": "c1d2e3f4-...",
+  "title": "What were Q3 2026 revenue figures?",
+  "messages": [
+    {
+      "id": "m1a2b3c4-...",
+      "role": "human",
+      "content": "What were Q3 2026 revenue figures?",
+      "sources": null,
+      "created_at": "2026-09-08T14:00:00Z"
+    },
+    {
+      "id": "m2b3c4d5-...",
+      "role": "ai",
+      "content": "According to the Q3 2026 report, total revenue was $4.2B...",
+      "sources": [
+        {
+          "document_id": "d1a2b3c4-...",
+          "filename": "report.txt",
+          "excerpt": "Total revenue for Q3 2026 reached $4.2 billion..."
+        }
+      ],
+      "created_at": "2026-09-08T14:00:05Z"
+    }
+  ]
+}
+```
+
+Errors: `404` (conversation not found or not owned by user).
 
 ## 7. Database Schema
 
@@ -478,6 +550,31 @@ Indexes: unique index on `(rag_job_id, document_id)`.
 Status values: `pending`, `ready`, `failed`.
 
 Indexes: `ix_documents_user_id`, `ix_documents_status`, `ix_documents_s3_key` (unique).
+
+### Table: `conversations`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `UUID` | PK, default `gen_random_uuid()` |
+| `user_id` | `UUID` | FK → `users.id`, NOT NULL |
+| `title` | `VARCHAR(200)` | NULLABLE (derived from first question, truncated to 200 chars) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, default `now()` |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL, default `now()` |
+
+Indexes: `ix_conversations_user_id_updated_at` on `(user_id, updated_at DESC)` for efficient "last 10" queries.
+
+### Table: `messages`
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `UUID` | PK, default `gen_random_uuid()` |
+| `conversation_id` | `UUID` | FK → `conversations.id` ON DELETE CASCADE, NOT NULL |
+| `role` | `VARCHAR(10)` | NOT NULL, CHECK in ('human', 'ai') |
+| `content` | `TEXT` | NOT NULL |
+| `sources` | `JSONB` | NULLABLE (AI messages only — `[{document_id, filename, excerpt}]`) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, default `now()` |
+
+Indexes: `ix_messages_conversation_id_created_at` on `(conversation_id, created_at)` for chronological retrieval.
 
 ### Vector Storage (LangChain PGVector)
 
