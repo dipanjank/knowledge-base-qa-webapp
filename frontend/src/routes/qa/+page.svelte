@@ -90,7 +90,7 @@
 		messages = [
 			...messages,
 			{
-				id: crypto.randomUUID(),
+				id: Math.random().toString(36).slice(2),
 				role: 'human',
 				content: q,
 				sources: null,
@@ -114,7 +114,7 @@
 			messages = [
 				...messages,
 				{
-					id: crypto.randomUUID(),
+					id: Math.random().toString(36).slice(2),
 					role: 'ai',
 					content: data.answer,
 					sources: data.sources.length > 0 ? data.sources : null,
