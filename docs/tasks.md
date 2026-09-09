@@ -56,9 +56,8 @@
 
 ### Stories
 
-- [ ] **5.1** User can ask a question and receive an AI-generated answer based on relevant document chunks
-- [ ] **5.2** Answers include source citations with document name, excerpt, and relevance score
-- [ ] **5.3** User is told when there is not enough information to answer the question
+- [x] **5.1** User can ask a question and receive an AI-generated answer based on relevant document chunks. Answers include source citations with document name and excerpt
+- [x] **5.2** User can see their last 10 conversation history and can resume any of those conversations at a later session.
 
 ## Epic 6: Infrastructure
 

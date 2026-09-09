@@ -9,6 +9,8 @@ os.environ.setdefault("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7")
 os.environ.setdefault("AWS_REGION", "eu-west-1")
 os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
 os.environ.setdefault("SQS_QUEUE_URL", "http://localhost:4566/queue/test")
+os.environ.setdefault("BEDROCK_MODEL_ID", "test-model")
+os.environ.setdefault("BEDROCK_EMBEDDING_MODEL_ID", "test-embed-model")
 os.environ.setdefault("ADMIN_USERNAME", "admin")
 os.environ.setdefault("ADMIN_EMAIL", "admin@test.local")
 os.environ.setdefault("ADMIN_PASSWORD", "testpassword")
@@ -18,6 +20,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
+from app.models.conversation import Conversation, Message
 from app.models.document import Document
 from app.models.rag_job import RagJob
 from app.models.user import User
@@ -92,4 +95,34 @@ def make_user(
         role=role,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
+    )
+
+
+def make_conversation(
+    user_id: uuid.UUID | None = None,
+    title: str = "Test conversation",
+) -> Conversation:
+    now = datetime.now(timezone.utc)
+    return Conversation(
+        id=uuid.uuid4(),
+        user_id=user_id or uuid.uuid4(),
+        title=title,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def make_message(
+    conversation_id: uuid.UUID | None = None,
+    role: str = "human",
+    content: str = "Hello",
+    sources: list | None = None,
+) -> Message:
+    return Message(
+        id=uuid.uuid4(),
+        conversation_id=conversation_id or uuid.uuid4(),
+        role=role,
+        content=content,
+        sources=sources,
+        created_at=datetime.now(timezone.utc),
     )

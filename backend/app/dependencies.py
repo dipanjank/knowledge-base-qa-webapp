@@ -2,17 +2,21 @@ import uuid
 
 from fastapi import Cookie, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from langchain_aws import BedrockEmbeddings, ChatBedrockConverse
+from langchain_postgres import PGVector
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import get_db
+from app.database import create_sync_session_factory, get_db
 from app.models.user import User
+from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.rag_job_repository import RagJobRepository
 from app.repositories.user_repository import UserRepository
 from app.services.admin_service import AdminService
 from app.services.auth_service import AuthService
 from app.services.document_service import DocumentService
+from app.services.qa_service import QAService
 from app.services.rag_job_service import RagJobService
 from app.services.s3_service import S3Service
 from app.services.sqs_service import SQSService
@@ -87,3 +91,51 @@ def get_rag_job_service(
     rag_job_repo: RagJobRepository = Depends(get_rag_job_repo),
 ) -> RagJobService:
     return RagJobService(rag_job_repo)
+
+
+_vector_store = None
+_llm = None
+_sync_session_factory = None
+
+
+def _get_vector_store() -> PGVector:
+    global _vector_store
+    if _vector_store is None:
+        embeddings = BedrockEmbeddings(
+            model_id=settings.bedrock_embedding_model_id,
+            region_name=settings.aws_region,
+        )
+        _vector_store = PGVector(
+            embeddings=embeddings,
+            collection_name="document_chunks",
+            connection=settings.database_url,
+            use_jsonb=True,
+        )
+    return _vector_store
+
+
+def _get_llm() -> ChatBedrockConverse:
+    global _llm
+    if _llm is None:
+        _llm = ChatBedrockConverse(
+            model_id=settings.bedrock_model_id,
+            region_name=settings.aws_region,
+        )
+    return _llm
+
+
+def _get_sync_session_factory():
+    global _sync_session_factory
+    if _sync_session_factory is None:
+        _sync_session_factory = create_sync_session_factory(settings.database_url)
+    return _sync_session_factory
+
+
+def get_conversation_repo(db: AsyncSession = Depends(get_db)) -> ConversationRepository:
+    return ConversationRepository(db)
+
+
+def get_qa_service(
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+) -> QAService:
+    return QAService(conversation_repo, _get_vector_store(), _get_llm(), _get_sync_session_factory())
