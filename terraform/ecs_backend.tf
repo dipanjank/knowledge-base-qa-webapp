@@ -1,3 +1,4 @@
+/*
 module "backend_service" {
   source  = "terraform-aws-modules/ecs/aws//modules/service"
   version = "~> 7.0"
@@ -127,3 +128,4 @@ resource "aws_cloudwatch_log_group" "backend" {
 
   tags = local.tags
 }
+*/
