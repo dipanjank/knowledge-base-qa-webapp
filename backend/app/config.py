@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     s3_bucket_name: str
     sqs_queue_url: str
 
+    bedrock_model_id: str
+    bedrock_embedding_model_id: str
+
     admin_username: str
     admin_email: str
     admin_password: str
